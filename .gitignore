@@ -4,7 +4,7 @@ node_modules
 !.env.example
 dist
 
-/src/generated
+/generated
 
 # Lock Files
 pnpm-lock.yaml

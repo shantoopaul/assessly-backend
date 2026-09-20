@@ -1,0 +1,51 @@
+enum Role {
+  CANDIDATE
+  REVIEWER
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  BLOCKED
+}
+
+enum AssessmentStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum Difficulty {
+  JUNIOR
+  MID
+  SENIOR
+}
+
+enum QuestionType {
+  MCQ
+  TEXT
+  CODE
+}
+
+enum AttemptStatus {
+  PENDING_PAYMENT
+  READY
+  IN_PROGRESS
+  SUBMITTED
+  UNDER_REVIEW
+  EVALUATED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  REQUIRES_ACTION
+  SUCCEEDED
+  FAILED
+  CANCELLED
+}
+
+enum ReviewDecision {
+  PASS
+  FAIL
+}

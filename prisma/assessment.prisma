@@ -1,0 +1,24 @@
+model Assessment {
+  id              String           @id @default(uuid())
+  title           String
+  slug            String           @unique
+  description     String
+  difficulty      Difficulty
+  durationMinutes Int
+  passingScore    Float
+  feeCents        Int              @default(0)
+  currency        String           @default("usd")
+  status          AssessmentStatus @default(DRAFT)
+  createdById     String
+  deletedAt       DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  creator   User       @relation("AssessmentAuthor", fields: [createdById], references: [id], onDelete: Restrict)
+  questions Question[]
+  attempts  Attempt[]
+
+  @@index([status, deletedAt, createdAt])
+  @@index([difficulty, status])
+  @@index([createdById, deletedAt])
+}

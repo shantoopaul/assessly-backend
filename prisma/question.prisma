@@ -1,0 +1,19 @@
+model Question {
+  id            String       @id @default(uuid())
+  assessmentId  String
+  prompt        String
+  type          QuestionType
+  options       Json?
+  correctAnswer Json?
+  points        Int
+  order         Int
+  deletedAt     DateTime?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  assessment Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  answers    Answer[]
+
+  @@unique([assessmentId, order])
+  @@index([assessmentId, deletedAt])
+}

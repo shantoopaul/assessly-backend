@@ -1,0 +1,64 @@
+model Attempt {
+  id           String        @id @default(uuid())
+  assessmentId String
+  candidateId  String
+  reviewerId   String?
+  attemptNo    Int           @default(1)
+  status       AttemptStatus
+  startedAt    DateTime?
+  expiresAt    DateTime?
+  submittedAt  DateTime?
+  evaluatedAt  DateTime?
+  autoScore    Float?
+  finalScore   Float?
+  passed       Boolean?
+  deletedAt    DateTime?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  assessment Assessment @relation(fields: [assessmentId], references: [id], onDelete: Restrict)
+  candidate  User       @relation("CandidateAttempts", fields: [candidateId], references: [id], onDelete: Restrict)
+  reviewer   User?      @relation("ReviewerAttempts", fields: [reviewerId], references: [id], onDelete: SetNull)
+  answers    Answer[]
+  payment    Payment?
+  review     Review?
+
+  @@unique([candidateId, assessmentId, attemptNo])
+  @@index([candidateId, status, createdAt])
+  @@index([reviewerId, status])
+  @@index([assessmentId, status])
+}
+
+model Answer {
+  id            String   @id @default(uuid())
+  attemptId     String
+  questionId    String
+  response      Json
+  autoScore     Float?
+  reviewerScore Float?
+  feedback      String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  attempt  Attempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  question Question @relation(fields: [questionId], references: [id], onDelete: Restrict)
+
+  @@unique([attemptId, questionId])
+  @@index([attemptId])
+}
+
+model Review {
+  id         String         @id @default(uuid())
+  attemptId  String         @unique
+  reviewerId String
+  feedback   String
+  decision   ReviewDecision
+  totalScore Float
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  attempt  Attempt @relation(fields: [attemptId], references: [id], onDelete: Restrict)
+  reviewer User    @relation(fields: [reviewerId], references: [id], onDelete: Restrict)
+
+  @@index([reviewerId, createdAt])
+}

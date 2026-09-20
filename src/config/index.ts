@@ -20,7 +20,8 @@ const envSchema = z.object({
   TESTER_REVIEWER_PASSWORD: z.string().min(8).default("Tester@reviewer12345"),
   TESTER_CANDIDATE_NAME: z.string().default("Tester Candidate 1"),
   TESTER_CANDIDATE_EMAIL: z.email().default("testercandidate@gmail.com"),
-  TESTER_CANDIDATE_PASSWORD: z.string().min(8).default("Tester@candidate12345")
+  TESTER_CANDIDATE_PASSWORD: z.string().min(8).default("Tester@candidate12345"),
+  REDIS_URL: z.string().optional().or(z.literal("")),
 });
 
 const parsed = envSchema.safeParse(process.env);

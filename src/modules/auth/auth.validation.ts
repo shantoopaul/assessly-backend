@@ -11,14 +11,14 @@ const password = z
 export const registerSchema = z.object({
 	body: z.object({
 		name: z.string().trim().min(2).max(80),
-		email: z.email().transform((v) => v.toLowerCase()),
+		email: z.email().transform((bool) => bool.toLowerCase()),
 		password,
 	}),
 });
 
 export const loginSchema = z.object({
 	body: z.object({
-		email: z.email().transform((v) => v.toLowerCase()),
+		email: z.email().transform((bool) => bool.toLowerCase()),
 		password: z.string().min(1),
 	}),
 });

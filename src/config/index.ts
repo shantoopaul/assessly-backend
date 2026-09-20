@@ -25,6 +25,12 @@ const envSchema = z.object({
   CLOUDINARY_CLOUD_NAME: z.string().optional().or(z.literal("")),
   CLOUDINARY_API_KEY: z.string().optional().or(z.literal("")),
   CLOUDINARY_API_SECRET: z.string().optional().or(z.literal("")),
+  SMTP_HOST: z.string().optional().or(z.literal("")),
+  SMTP_PORT: z.coerce.number().int().positive().default(587),
+  SMTP_SECURE: z.string().default("false").transform((bool) => bool === "true"),
+  SMTP_USER: z.string().optional().or(z.literal("")),
+  SMTP_PASSWORD: z.string().optional().or(z.literal("")),
+  EMAIL_SENDER: z.email().default("shantoopaul@gmail.com"),
 });
 
 const parsed = envSchema.safeParse(process.env);

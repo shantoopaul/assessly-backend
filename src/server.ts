@@ -1,10 +1,10 @@
 import app from "./app";
+import { config } from "./config";
 
-const PORT = 5000
 async function main() {
 	try {
-		app.listen(PORT, () => {
-			console.log("Server is running on PORT: ", PORT);
+		app.listen(config.PORT, () => {
+			console.log("Server is running on PORT: ", config.PORT);
 		})
 	} catch(error) {
 		console.error("Error starting the server: ", error);

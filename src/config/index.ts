@@ -22,6 +22,9 @@ const envSchema = z.object({
   TESTER_CANDIDATE_EMAIL: z.email().default("testercandidate@gmail.com"),
   TESTER_CANDIDATE_PASSWORD: z.string().min(8).default("Tester@candidate12345"),
   REDIS_URL: z.string().optional().or(z.literal("")),
+  CLOUDINARY_CLOUD_NAME: z.string().optional().or(z.literal("")),
+  CLOUDINARY_API_KEY: z.string().optional().or(z.literal("")),
+  CLOUDINARY_API_SECRET: z.string().optional().or(z.literal("")),
 });
 
 const parsed = envSchema.safeParse(process.env);

@@ -26,7 +26,7 @@ export const validateRequest = (schema: ZodType): RequestHandler => {
     };
 
     if (data.body !== undefined) req.body = data.body;
-    if (data.params !== undefined) Object.assign(req.params, data.params);
+    if (data.params !== undefined) Object.assign(req.params, data.params as Record<string, string>);
     next();
   };
 };

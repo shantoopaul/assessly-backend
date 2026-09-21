@@ -1,6 +1,8 @@
 import { Router } from "express";
 import { assessmentRouter } from "../modules/assessments/assessment.route";
+import { attemptRouter } from "../modules/attempts/attempt.route";
 import { authRouter } from "../modules/auth/auth.route";
+import { reviewRouter } from "../modules/reviews/review.route";
 import { userRouter } from "../modules/users/user.route";
 
 export const apiRouter = Router();
@@ -8,3 +10,5 @@ export const apiRouter = Router();
 apiRouter.use("/auth", authRouter);
 apiRouter.use("/users", userRouter);
 apiRouter.use("/assessments", assessmentRouter);
+apiRouter.use("/attempts", attemptRouter);
+apiRouter.use("/reviews", reviewRouter);

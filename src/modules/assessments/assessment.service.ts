@@ -1,9 +1,10 @@
+import { Prisma } from "../../../generated/prisma/client";
 import {
 	AssessmentStatus,
 	type Difficulty,
-	type Prisma,
+	QuestionType,
 	Role,
-} from "../../../generated/prisma/client";
+} from "../../../generated/prisma/enums";
 import { prisma } from "../../lib/prisma";
 import { AppError } from "../../utils/AppError";
 import { writeAuditLog } from "../../utils/audit";
@@ -46,8 +47,19 @@ const assessmentPublicSelect = {
 	currency: true,
 	status: true,
 	createdAt: true,
-	creator: { select: { id: true, name: true } },
-	_count: { select: { questions: { where: { deletedAt: null } } } },
+	creator: {
+		select: {
+			id: true,
+			name: true,
+		},
+	},
+	_count: {
+		select: {
+			questions: {
+				where: { deletedAt: null },
+			},
+		},
+	},
 } as const;
 
 export const list = async (query: {
@@ -107,7 +119,11 @@ export const list = async (query: {
 
 export const getById = async (id: string) => {
 	const assessment = await prisma.assessment.findFirst({
-		where: { id, deletedAt: null, status: AssessmentStatus.PUBLISHED },
+		where: {
+			id,
+			deletedAt: null,
+			status: AssessmentStatus.PUBLISHED,
+		},
 		select: assessmentPublicSelect,
 	});
 	if (!assessment) throw new AppError(404, "Published assessment not found");
@@ -168,8 +184,13 @@ export const getManaged = async (id: string, actor: Actor) => {
 	const assessment = await prisma.assessment.findUnique({
 		where: { id },
 		include: {
-			questions: { where: { deletedAt: null }, orderBy: { order: "asc" } },
-			_count: { select: { attempts: true } },
+			questions: {
+				where: { deletedAt: null },
+				orderBy: { order: "asc" },
+			},
+			_count: {
+				select: { attempts: true },
+			},
 		},
 	});
 	if (!assessment) throw new AppError(404, "Assessment not found");
@@ -286,5 +307,145 @@ export const softDelete = async (id: string, actor: Actor) => {
 
 	await clearAssessmentCache();
 	await writeAuditLog(actor.id, "ASSESSMENT_SOFT_DELETE", "Assessment", id);
+	return null;
+};
+
+export const addQuestion = async (
+	assessmentId: string,
+	actor: Actor,
+	payload: {
+		prompt: string;
+		type: QuestionType;
+		options?: string[];
+		correctAnswer?: unknown;
+		points: number;
+		order: number;
+	},
+) => {
+	const assessment = await assertManager(assessmentId, actor);
+	await assertNoAttempts(assessmentId);
+	if (assessment.status === AssessmentStatus.ARCHIVED) {
+		throw new AppError(409, "Archived assessments cannot be edited");
+	}
+
+	const data: Prisma.QuestionUncheckedCreateInput = {
+		assessmentId,
+		prompt: payload.prompt,
+		type: payload.type,
+		points: payload.points,
+		order: payload.order,
+		...(payload.options !== undefined
+			? { options: payload.options as Prisma.InputJsonValue }
+			: {}),
+		...(payload.correctAnswer !== undefined
+			? { correctAnswer: payload.correctAnswer as Prisma.InputJsonValue }
+			: {}),
+	};
+
+	const question = await prisma.question.create({ data });
+	await clearAssessmentCache();
+	await writeAuditLog(actor.id, "QUESTION_CREATE", "Question", question.id, {
+		assessmentId,
+	});
+	return question;
+};
+
+export const updateQuestion = async (
+	assessmentId: string,
+	questionId: string,
+	actor: Actor,
+	payload: Record<string, unknown>,
+) => {
+	const assessment = await assertManager(assessmentId, actor);
+	await assertNoAttempts(assessmentId);
+	if (assessment.status === AssessmentStatus.ARCHIVED) {
+		throw new AppError(409, "Archived assessments cannot be edited");
+	}
+
+	const question = await prisma.question.findFirst({
+		where: { id: questionId, assessmentId, deletedAt: null },
+	});
+	if (!question) throw new AppError(404, "Question not found");
+
+	const nextType = (payload.type as QuestionType | undefined) ?? question.type;
+	const nextOptions =
+		payload.options !== undefined ? payload.options : question.options;
+	const nextCorrectAnswer =
+		payload.correctAnswer !== undefined
+			? payload.correctAnswer
+			: question.correctAnswer;
+
+	if (nextType === QuestionType.MCQ) {
+		if (!Array.isArray(nextOptions) || nextOptions.length < 2) {
+			throw new AppError(400, "MCQ questions require at least two options");
+		}
+		if (
+			typeof nextCorrectAnswer !== "string" ||
+			!nextOptions.includes(nextCorrectAnswer)
+		) {
+			throw new AppError(
+				400,
+				"MCQ correctAnswer must match one of the options",
+			);
+		}
+	}
+
+	const data: Prisma.QuestionUpdateInput = {};
+	if (payload.prompt !== undefined) data.prompt = payload.prompt as string;
+	if (payload.type !== undefined) data.type = payload.type as QuestionType;
+	if (payload.points !== undefined) data.points = payload.points as number;
+	if (payload.order !== undefined) data.order = payload.order as number;
+	if ("options" in payload) {
+		data.options =
+			payload.options === null
+				? Prisma.DbNull
+				: (payload.options as Prisma.InputJsonValue);
+	}
+	if ("correctAnswer" in payload) {
+		data.correctAnswer =
+			payload.correctAnswer === null
+				? Prisma.DbNull
+				: (payload.correctAnswer as Prisma.InputJsonValue);
+	}
+
+	const result = await prisma.question.update({
+		where: { id: questionId },
+		data,
+	});
+
+	await clearAssessmentCache();
+	await writeAuditLog(actor.id, "QUESTION_UPDATE", "Question", questionId, {
+		assessmentId,
+	});
+	return result;
+};
+
+export const deleteQuestion = async (
+	assessmentId: string,
+	questionId: string,
+	actor: Actor,
+) => {
+	await assertManager(assessmentId, actor);
+	await assertNoAttempts(assessmentId);
+	const question = await prisma.question.findFirst({
+		where: { id: questionId, assessmentId, deletedAt: null },
+	});
+	if (!question) throw new AppError(404, "Question not found");
+
+	await prisma.question.update({
+		where: { id: questionId },
+		data: { deletedAt: new Date() },
+	});
+
+	await clearAssessmentCache();
+	await writeAuditLog(
+		actor.id,
+		"QUESTION_SOFT_DELETE",
+		"Question",
+		questionId,
+		{
+			assessmentId,
+		},
+	);
 	return null;
 };

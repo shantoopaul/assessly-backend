@@ -66,3 +66,35 @@ export const softDelete = catchAsync(async (req, res) => {
 	await AssessmentService.softDelete(assessmentId, user);
 	sendResponse(res, 200, "Assessment deleted successfully", null);
 });
+
+export const addQuestion = catchAsync(async (req, res) => {
+	const user = getAuthenticatedUser(req.user);
+	const assessmentId = getRouteParam(req.params.id, "assessmentId");
+	const result = await AssessmentService.addQuestion(
+		assessmentId,
+		user,
+		req.body,
+	);
+	sendResponse(res, 201, "Question added successfully", result);
+});
+
+export const updateQuestion = catchAsync(async (req, res) => {
+	const user = getAuthenticatedUser(req.user);
+	const assessmentId = getRouteParam(req.params.id, "assessmentId");
+	const questionId = getRouteParam(req.params.questionId, "questionId");
+	const result = await AssessmentService.updateQuestion(
+		assessmentId,
+		questionId,
+		user,
+		req.body,
+	);
+	sendResponse(res, 200, "Question updated successfully", result);
+});
+
+export const deleteQuestion = catchAsync(async (req, res) => {
+	const user = getAuthenticatedUser(req.user);
+	const assessmentId = getRouteParam(req.params.id, "assessmentId");
+	const questionId = getRouteParam(req.params.questionId, "questionId");
+	await AssessmentService.deleteQuestion(assessmentId, questionId, user);
+	sendResponse(res, 200, "Question deleted successfully", null);
+});

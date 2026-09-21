@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { AssessmentStatus, Difficulty } from "../../../generated/prisma/enums";
+import {
+	AssessmentStatus,
+	Difficulty,
+	QuestionType,
+} from "../../../generated/prisma/enums";
 
 const slug = z
 	.string()
@@ -74,4 +78,65 @@ export const updateAssessmentSchema = z.object({
 			(data) => Object.keys(data).length > 0,
 			"At least one field is required",
 		),
+});
+
+const questionBody = z
+	.object({
+		prompt: z.string().trim().min(3).max(10000),
+		type: z.enum(QuestionType),
+		options: z.array(z.string().min(1)).min(2).max(10).optional(),
+		correctAnswer: z.string().min(1).optional(),
+		points: z.number().int().min(1).max(100),
+		order: z.number().int().min(1).max(1000),
+	})
+	.superRefine((data, ctx) => {
+		if (data.type === QuestionType.MCQ) {
+			if (!data.options || data.options.length < 2) {
+				ctx.addIssue({
+					code: "custom",
+					path: ["options"],
+					message: "MCQ questions require at least two options",
+				});
+			}
+			if (data.correctAnswer === undefined) {
+				ctx.addIssue({
+					code: "custom",
+					path: ["correctAnswer"],
+					message: "MCQ questions require a correctAnswer",
+				});
+			} else if (data.options && !data.options.includes(data.correctAnswer)) {
+				ctx.addIssue({
+					code: "custom",
+					path: ["correctAnswer"],
+					message: "correctAnswer must match one of the MCQ options",
+				});
+			}
+		}
+	});
+
+export const createQuestionSchema = z.object({
+	params: z.object({ id: z.uuid() }),
+	body: questionBody,
+});
+
+export const updateQuestionSchema = z.object({
+	params: z.object({
+		id: z.uuid(),
+		questionId: z.uuid(),
+	}),
+	body: z.object({
+		prompt: z.string().trim().min(3).max(10000).optional(),
+		type: z.enum(QuestionType).optional(),
+		options: z.array(z.string().min(1)).min(2).max(10).nullable().optional(),
+		correctAnswer: z.unknown().nullable().optional(),
+		points: z.number().int().min(1).max(100).optional(),
+		order: z.number().int().min(1).max(1000).optional(),
+	}),
+});
+
+export const questionParamSchema = z.object({
+	params: z.object({
+		id: z.uuid(),
+		questionId: z.uuid(),
+	}),
 });

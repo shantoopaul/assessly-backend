@@ -1,5 +1,9 @@
 import type Stripe from "stripe";
-import { AttemptStatus, PaymentStatus } from "../../../generated/prisma/enums";
+import {
+	AttemptStatus,
+	PaymentStatus,
+	Role,
+} from "../../../generated/prisma/enums";
 import { config } from "../../config";
 import { prisma } from "../../lib/prisma";
 import { getStripe } from "../../lib/stripe";
@@ -168,4 +172,35 @@ export const confirm = async (
 		stripeStatus: intent.status,
 		clientSecret: intent.client_secret,
 	};
+};
+
+export const getById = async (
+	actor: { id: string; role: Role },
+	paymentId: string,
+) => {
+	const payment = await prisma.payment.findUnique({
+		where: { id: paymentId },
+		include: {
+			attempt: {
+				select: {
+					id: true,
+					candidateId: true,
+					assessment: { select: { id: true, title: true } },
+				},
+			},
+		},
+	});
+
+	if (!payment) throw new AppError(404, "Payment not found");
+	if (actor.role !== Role.ADMIN && payment.userId !== actor.id)
+		throw new AppError(403, "You cannot access this payment");
+	return payment;
+};
+
+export const getByAttempt = async (candidateId: string, attemptId: string) => {
+	const payment = await prisma.payment.findFirst({
+		where: { attemptId, userId: candidateId },
+	});
+	if (!payment) throw new AppError(404, "Payment not found");
+	return payment;
 };

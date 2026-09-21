@@ -13,3 +13,11 @@ export const confirmPaymentSchema = z.object({
 		paymentMethodId: z.string().min(3),
 	}),
 });
+
+export const paymentIdSchema = z.object({
+	params: z.object({ paymentId: z.uuid() }),
+});
+
+export const attemptPaymentSchema = z.object({
+	params: z.object({ attemptId: z.uuid() }),
+});

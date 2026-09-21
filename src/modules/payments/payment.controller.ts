@@ -25,3 +25,17 @@ export const confirm = catchAsync(async (req, res) => {
 	);
 	sendResponse(res, 200, "Payment confirmation processed", result);
 });
+
+export const getById = catchAsync(async (req, res) => {
+	const user = getAuthenticatedUser(req.user);
+	const paymentId = getRouteParam(req.params.paymentId, "paymentId");
+	const result = await PaymentService.getById(user, paymentId);
+	sendResponse(res, 200, "Payment retrieved successfully", result);
+});
+
+export const getByAttempt = catchAsync(async (req, res) => {
+	const user = getAuthenticatedUser(req.user);
+	const attemptId = getRouteParam(req.params.attemptId, "attemptId");
+	const result = await PaymentService.getByAttempt(user.id, attemptId);
+	sendResponse(res, 200, "Payment retrieved successfully", result);
+});

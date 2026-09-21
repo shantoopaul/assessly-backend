@@ -1,5 +1,9 @@
 import { Prisma } from "../../../generated/prisma/client";
-import { AssessmentStatus, AttemptStatus } from "../../../generated/prisma/enums";
+import {
+	AssessmentStatus,
+	AttemptStatus,
+	QuestionType,
+} from "../../../generated/prisma/enums";
 import { prisma } from "../../lib/prisma";
 import { AppError } from "../../utils/AppError";
 import { writeAuditLog } from "../../utils/audit";
@@ -9,17 +13,35 @@ export const enroll = async (candidateId: string, assessmentId: string) => {
 		const attempt = await prisma.$transaction(
 			async (tx) => {
 				const assessment = await tx.assessment.findFirst({
-					where: { id: assessmentId, deletedAt: null, status: AssessmentStatus.PUBLISHED },
+					where: {
+						id: assessmentId,
+						deletedAt: null,
+						status: AssessmentStatus.PUBLISHED,
+					},
 				});
-				if (!assessment) throw new AppError(404, "Published assessment not found");
+				if (!assessment)
+					throw new AppError(404, "Published assessment not found");
 
 				const active = await tx.attempt.findFirst({
 					where: {
-						candidateId, assessmentId,
-						status: { in: [AttemptStatus.PENDING_PAYMENT, AttemptStatus.READY, AttemptStatus.IN_PROGRESS, AttemptStatus.SUBMITTED, AttemptStatus.UNDER_REVIEW] },
+						candidateId,
+						assessmentId,
+						status: {
+							in: [
+								AttemptStatus.PENDING_PAYMENT,
+								AttemptStatus.READY,
+								AttemptStatus.IN_PROGRESS,
+								AttemptStatus.SUBMITTED,
+								AttemptStatus.UNDER_REVIEW,
+							],
+						},
 					},
 				});
-				if (active) throw new AppError(409, "You already have an active attempt for this assessment");
+				if (active)
+					throw new AppError(
+						409,
+						"You already have an active attempt for this assessment",
+					);
 
 				const latest = await tx.attempt.findFirst({
 					where: { candidateId, assessmentId },
@@ -29,23 +51,43 @@ export const enroll = async (candidateId: string, assessmentId: string) => {
 
 				return tx.attempt.create({
 					data: {
-						candidateId, assessmentId,
+						candidateId,
+						assessmentId,
 						attemptNo: (latest?.attemptNo ?? 0) + 1,
-						status: assessment.feeCents > 0 ? AttemptStatus.PENDING_PAYMENT : AttemptStatus.READY,
+						status:
+							assessment.feeCents > 0
+								? AttemptStatus.PENDING_PAYMENT
+								: AttemptStatus.READY,
 					},
 					include: {
-						assessment: { select: { id: true, title: true, feeCents: true, currency: true, durationMinutes: true } },
+						assessment: {
+							select: {
+								id: true,
+								title: true,
+								feeCents: true,
+								currency: true,
+								durationMinutes: true,
+							},
+						},
 					},
 				});
 			},
 			{ isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
 		);
 
-		await writeAuditLog(candidateId, "ATTEMPT_ENROLL", "Attempt", attempt.id, { assessmentId });
+		await writeAuditLog(candidateId, "ATTEMPT_ENROLL", "Attempt", attempt.id, {
+			assessmentId,
+		});
 		return attempt;
 	} catch (error) {
-		if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2034") {
-			throw new AppError(409, "Enrollment conflicted with another request; retry once");
+		if (
+			error instanceof Prisma.PrismaClientKnownRequestError &&
+			error.code === "P2034"
+		) {
+			throw new AppError(
+				409,
+				"Enrollment conflicted with another request; retry once",
+			);
 		}
 		throw error;
 	}
@@ -60,24 +102,39 @@ export const start = async (candidateId: string, attemptId: string) => {
 		});
 		if (!attempt) throw new AppError(404, "Attempt not found");
 		if (attempt.status === AttemptStatus.IN_PROGRESS) return attempt;
-		if (attempt.status !== AttemptStatus.READY) throw new AppError(409, "Attempt is not ready to start");
+		if (attempt.status !== AttemptStatus.READY)
+			throw new AppError(409, "Attempt is not ready to start");
 
-		const expiresAt = new Date(now.getTime() + attempt.assessment.durationMinutes * 60_000);
+		const expiresAt = new Date(
+			now.getTime() + attempt.assessment.durationMinutes * 60_000,
+		);
 		const updated = await tx.attempt.updateMany({
 			where: { id: attemptId, candidateId, status: AttemptStatus.READY },
 			data: { status: AttemptStatus.IN_PROGRESS, startedAt: now, expiresAt },
 		});
-		if (updated.count !== 1) throw new AppError(409, "Attempt state changed; reload and try again");
+		if (updated.count !== 1)
+			throw new AppError(409, "Attempt state changed; reload and try again");
 
 		return tx.attempt.findUniqueOrThrow({
 			where: { id: attemptId },
 			include: {
 				assessment: {
 					select: {
-						id: true, title: true, durationMinutes: true, passingScore: true,
+						id: true,
+						title: true,
+						durationMinutes: true,
+						passingScore: true,
 						questions: {
-							where: { deletedAt: null }, orderBy: { order: "asc" },
-							select: { id: true, prompt: true, type: true, options: true, points: true, order: true },
+							where: { deletedAt: null },
+							orderBy: { order: "asc" },
+							select: {
+								id: true,
+								prompt: true,
+								type: true,
+								options: true,
+								points: true,
+								order: true,
+							},
 						},
 					},
 				},
@@ -87,4 +144,55 @@ export const start = async (candidateId: string, attemptId: string) => {
 
 	await writeAuditLog(candidateId, "ATTEMPT_START", "Attempt", attemptId);
 	return result;
+};
+
+const jsonEqual = (a: unknown, b: unknown) =>
+	JSON.stringify(a) === JSON.stringify(b);
+
+export const saveAnswer = async (
+	candidateId: string,
+	attemptId: string,
+	questionId: string,
+	response: unknown,
+) => {
+	const attempt = await prisma.attempt.findFirst({
+		where: { id: attemptId, candidateId, deletedAt: null },
+	});
+	if (!attempt) throw new AppError(404, "Attempt not found");
+	if (attempt.status !== AttemptStatus.IN_PROGRESS)
+		throw new AppError(
+			409,
+			"Answers can only be saved during an in-progress attempt",
+		);
+	if (attempt.expiresAt && attempt.expiresAt <= new Date())
+		throw new AppError(409, "Assessment time has expired");
+
+	const question = await prisma.question.findFirst({
+		where: {
+			id: questionId,
+			assessmentId: attempt.assessmentId,
+			deletedAt: null,
+		},
+	});
+	if (!question)
+		throw new AppError(404, "Question not found in this assessment");
+
+	const autoScore =
+		question.type === QuestionType.MCQ && question.correctAnswer !== null
+			? jsonEqual(response, question.correctAnswer)
+				? question.points
+				: 0
+			: null;
+
+	return prisma.answer.upsert({
+		where: { attemptId_questionId: { attemptId, questionId } },
+		create: {
+			attemptId,
+			questionId,
+			response: response as Prisma.InputJsonValue,
+			autoScore,
+		},
+		update: { response: response as Prisma.InputJsonValue, autoScore },
+		select: { id: true, questionId: true, response: true, updatedAt: true },
+	});
 };

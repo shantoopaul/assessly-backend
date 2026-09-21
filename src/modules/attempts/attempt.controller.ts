@@ -17,3 +17,16 @@ export const start = catchAsync(async (req, res) => {
 	const result = await AttemptService.start(user.id, attemptId);
 	sendResponse(res, 200, "Assessment attempt started", result);
 });
+
+export const saveAnswer = catchAsync(async (req, res) => {
+	const user = getAuthenticatedUser(req.user);
+	const attemptId = getRouteParam(req.params.attemptId, "attemptId");
+	const questionId = getRouteParam(req.params.questionId, "questionId");
+	const result = await AttemptService.saveAnswer(
+		user.id,
+		attemptId,
+		questionId,
+		req.body.response,
+	);
+	sendResponse(res, 200, "Answer saved successfully", result);
+});

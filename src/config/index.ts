@@ -36,6 +36,17 @@ const envSchema = z.object({
 	SMTP_USER: z.string().optional().or(z.literal("")),
 	SMTP_PASSWORD: z.string().optional().or(z.literal("")),
 	EMAIL_SENDER: z.email().default("shantoopaul@gmail.com"),
+	STRIPE_SECRET_KEY: z.string().optional().or(z.literal("")),
+	STRIPE_WEBHOOK_SECRET: z.string().optional().or(z.literal("")),
+	STRIPE_RETURN_URL: z.string().default("http://localhost:3000/payment/return"),
+	STRIPE_SUCCESS_URL: z
+		.string()
+		.default(
+			"http://localhost:5000/api/v1/payments/checkout/success?session_id={CHECKOUT_SESSION_ID}",
+		),
+	STRIPE_CANCEL_URL: z
+		.string()
+		.default("http://localhost:5000/api/v1/payments/checkout/cancel"),
 });
 
 const parsed = envSchema.safeParse(process.env);

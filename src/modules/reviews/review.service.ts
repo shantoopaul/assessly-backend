@@ -1,6 +1,7 @@
 import { AttemptStatus, type Prisma } from "../../../generated/prisma/client";
 import { prisma } from "../../lib/prisma";
 import { AppError } from "../../utils/AppError";
+import { writeAuditLog } from "../../utils/audit";
 import { buildMeta, getPagination } from "../../utils/pagination";
 
 export const queue = async (query: { page: number; limit: number }) => {
@@ -116,4 +117,31 @@ export const getReviewAttempt = async (
 	});
 	if (!attempt) throw new AppError(404, "Review assignment not found");
 	return attempt;
+};
+
+export const claim = async (reviewerId: string, attemptId: string) => {
+	const result = await prisma.attempt.updateMany({
+		where: {
+			id: attemptId,
+			status: AttemptStatus.SUBMITTED,
+			reviewerId: null,
+			deletedAt: null,
+		},
+		data: { reviewerId, status: AttemptStatus.UNDER_REVIEW },
+	});
+
+	if (result.count !== 1) {
+		const existing = await prisma.attempt.findUnique({
+			where: { id: attemptId },
+			select: { reviewerId: true, status: true },
+		});
+		if (!existing) throw new AppError(404, "Attempt not found");
+		throw new AppError(
+			409,
+			"Attempt has already been claimed or is not reviewable",
+		);
+	}
+
+	await writeAuditLog(reviewerId, "REVIEW_CLAIM", "Attempt", attemptId);
+	return getReviewAttempt(reviewerId, attemptId);
 };

@@ -33,3 +33,10 @@ export const getAttempt = catchAsync(async (req, res) => {
 	const result = await ReviewService.getReviewAttempt(user.id, attemptId);
 	sendResponse(res, 200, "Review attempt retrieved successfully", result);
 });
+
+export const claim = catchAsync(async (req, res) => {
+	const user = getAuthenticatedUser(req.user);
+	const attemptId = getRouteParam(req.params.attemptId, "attemptId");
+	const result = await ReviewService.claim(user.id, attemptId);
+	sendResponse(res, 200, "Attempt claimed successfully", result);
+});

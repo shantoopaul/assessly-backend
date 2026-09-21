@@ -15,3 +15,9 @@ reviewRouter.get(
 	validateRequest(attemptIdSchema),
 	controller.getAttempt,
 );
+
+reviewRouter.post(
+	"/:attemptId/claim",
+	validateRequest(attemptIdSchema),
+	controller.claim,
+);

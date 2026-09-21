@@ -3,7 +3,11 @@ import { Role } from "../../../generated/prisma/enums";
 import { auth } from "../../middleware/auth";
 import { validateRequest } from "../../middleware/validateRequest";
 import * as controller from "./review.controller";
-import { attemptIdSchema, reviewListSchema } from "./review.validation";
+import {
+	attemptIdSchema,
+	evaluateSchema,
+	reviewListSchema,
+} from "./review.validation";
 
 export const reviewRouter = Router();
 
@@ -20,4 +24,10 @@ reviewRouter.post(
 	"/:attemptId/claim",
 	validateRequest(attemptIdSchema),
 	controller.claim,
+);
+
+reviewRouter.post(
+	"/:attemptId/evaluate",
+	validateRequest(evaluateSchema),
+	controller.evaluate,
 );

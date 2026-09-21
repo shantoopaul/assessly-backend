@@ -10,3 +10,19 @@ export const reviewListSchema = z.object({
 export const attemptIdSchema = z.object({
 	params: z.object({ attemptId: z.uuid() }),
 });
+
+export const evaluateSchema = z.object({
+	params: z.object({ attemptId: z.uuid() }),
+	body: z.object({
+		feedback: z.string().trim().min(3).max(5000),
+		answers: z
+			.array(
+				z.object({
+					answerId: z.uuid(),
+					score: z.number().min(0),
+					feedback: z.string().trim().max(2000).optional(),
+				}),
+			)
+			.default([]),
+	}),
+});

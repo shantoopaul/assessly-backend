@@ -26,3 +26,29 @@ export const getById = catchAsync(async (req, res) => {
 	const result = await AssessmentService.getById(assessmentId);
 	sendResponse(res, 200, "Assessment retrieved successfully", result);
 });
+
+export const listManaged = catchAsync(async (req, res) => {
+	const user = getAuthenticatedUser(req.user);
+	const result = await AssessmentService.listManaged(user, req.query as never);
+	sendResponse(
+		res,
+		200,
+		"Managed assessments retrieved successfully",
+		result.data,
+		result.meta,
+	);
+});
+
+export const getManaged = catchAsync(async (req, res) => {
+	const user = getAuthenticatedUser(req.user);
+	const assessmentId = getRouteParam(req.params.id, "assessmentId");
+	const result = await AssessmentService.getManaged(assessmentId, user);
+	sendResponse(res, 200, "Managed assessment retrieved successfully", result);
+});
+
+export const publish = catchAsync(async (req, res) => {
+	const user = getAuthenticatedUser(req.user);
+	const assessmentId = getRouteParam(req.params.id, "assessmentId");
+	const result = await AssessmentService.publish(assessmentId, user);
+	sendResponse(res, 200, "Assessment published successfully", result);
+});

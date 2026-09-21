@@ -1,13 +1,9 @@
-import type { Prisma, Role } from "../../../generated/prisma/client";
-import {
-	AssessmentStatus,
-	type Difficulty,
-} from "../../../generated/prisma/enums";
-import { prisma } from "../../lib/prisma";
-import { AppError } from "../../utils/AppError";
-import { writeAuditLog } from "../../utils/audit";
-import { clearAssessmentCache, getCache, setCache } from "../../utils/cache";
-import { buildMeta, getPagination } from "../../utils/pagination";
+import { AssessmentStatus, type Difficulty, type Prisma, Role } from "../../../generated/prisma/client";
+import { prisma } from '../../lib/prisma';
+import { AppError } from '../../utils/AppError';
+import { writeAuditLog } from '../../utils/audit';
+import { clearAssessmentCache, getCache, setCache } from '../../utils/cache';
+import { buildMeta, getPagination } from '../../utils/pagination';
 
 type Actor = { id: string; role: Role };
 
@@ -111,4 +107,98 @@ export const getById = async (id: string) => {
 	});
 	if (!assessment) throw new AppError(404, "Published assessment not found");
 	return assessment;
+};
+
+export const listManaged = async (
+	actor: Actor,
+	query: {
+		page: number;
+		limit: number;
+		search?: string;
+		status?: AssessmentStatus;
+	},
+) => {
+	const { page, limit, skip } = getPagination(query.page, query.limit);
+	const where: Prisma.AssessmentWhereInput = {
+		deletedAt: null,
+		...(actor.role === Role.REVIEWER ? { createdById: actor.id } : {}),
+		...(query.status ? { status: query.status } : {}),
+		...(query.search
+			? {
+					OR: [
+						{ title: { contains: query.search, mode: "insensitive" } },
+						{ slug: { contains: query.search, mode: "insensitive" } },
+					],
+				}
+			: {}),
+	};
+
+	const [data, total] = await prisma.$transaction([
+		prisma.assessment.findMany({
+			where,
+			skip,
+			take: limit,
+			orderBy: { updatedAt: "desc" },
+			select: assessmentPublicSelect,
+		}),
+		prisma.assessment.count({ where }),
+	]);
+
+	return { data, meta: buildMeta(page, limit, total) };
+};
+
+const assertManager = async (assessmentId: string, actor: Actor) => {
+	const assessment = await prisma.assessment.findFirst({
+		where: { id: assessmentId, deletedAt: null },
+	});
+	if (!assessment) throw new AppError(404, "Assessment not found");
+	if (actor.role !== Role.ADMIN && assessment.createdById !== actor.id) {
+		throw new AppError(403, "You can only manage assessments you created");
+	}
+	return assessment;
+};
+
+export const getManaged = async (id: string, actor: Actor) => {
+	await assertManager(id, actor);
+	const assessment = await prisma.assessment.findUnique({
+		where: { id },
+		include: {
+			questions: { where: { deletedAt: null }, orderBy: { order: "asc" } },
+			_count: { select: { attempts: true } },
+		},
+	});
+	if (!assessment) throw new AppError(404, "Assessment not found");
+	return assessment;
+};
+
+export const publish = async (id: string, actor: Actor) => {
+	const current = await assertManager(id, actor);
+	if (current.status === AssessmentStatus.ARCHIVED) {
+		throw new AppError(409, "Archived assessments cannot be published");
+	}
+
+	const activeQuestions = await prisma.question.count({
+		where: { assessmentId: id, deletedAt: null },
+	});
+	if (activeQuestions === 0) {
+		throw new AppError(409, "Add at least one question before publishing");
+	}
+
+	const totalPoints = await prisma.question.aggregate({
+		where: { assessmentId: id, deletedAt: null },
+		_sum: { points: true },
+	});
+	if (!totalPoints._sum.points) {
+		throw new AppError(409, "Assessment must have positive total points");
+	}
+
+	const result = await prisma.assessment.update({
+		where: { id },
+		data: { status: AssessmentStatus.PUBLISHED },
+		select: assessmentPublicSelect,
+	});
+
+	await clearAssessmentCache();
+	await writeAuditLog(actor.id, "ASSESSMENT_PUBLISH", "Assessment", id);
+	return result;
 };

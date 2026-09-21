@@ -8,6 +8,7 @@ import {
 	createAssessmentSchema,
 	idParamSchema,
 	listAssessmentSchema,
+	manageListSchema
 } from "./assessment.validation";
 
 export const assessmentRouter = Router();
@@ -29,4 +30,25 @@ assessmentRouter.get(
 	"/:id",
 	validateRequest(idParamSchema),
 	controller.getById,
+);
+
+assessmentRouter.get(
+	"/manage/mine",
+	auth(Role.REVIEWER, Role.ADMIN),
+	validateRequest(manageListSchema),
+	controller.listManaged,
+);
+
+assessmentRouter.get(
+	"/manage/:id",
+	auth(Role.REVIEWER, Role.ADMIN),
+	validateRequest(idParamSchema),
+	controller.getManaged,
+);
+
+assessmentRouter.patch(
+	"/:id/publish",
+	auth(Role.REVIEWER, Role.ADMIN),
+	validateRequest(idParamSchema),
+	controller.publish,
 );

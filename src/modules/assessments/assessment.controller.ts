@@ -52,3 +52,17 @@ export const publish = catchAsync(async (req, res) => {
 	const result = await AssessmentService.publish(assessmentId, user);
 	sendResponse(res, 200, "Assessment published successfully", result);
 });
+
+export const update = catchAsync(async (req, res) => {
+	const user = getAuthenticatedUser(req.user);
+	const assessmentId = getRouteParam(req.params.id, "assessmentId");
+	const result = await AssessmentService.update(assessmentId, user, req.body);
+	sendResponse(res, 200, "Assessment updated successfully", result);
+});
+
+export const softDelete = catchAsync(async (req, res) => {
+	const user = getAuthenticatedUser(req.user);
+	const assessmentId = getRouteParam(req.params.id, "assessmentId");
+	await AssessmentService.softDelete(assessmentId, user);
+	sendResponse(res, 200, "Assessment deleted successfully", null);
+});

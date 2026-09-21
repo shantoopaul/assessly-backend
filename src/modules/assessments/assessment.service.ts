@@ -1,9 +1,14 @@
-import { AssessmentStatus, type Difficulty, type Prisma, Role } from "../../../generated/prisma/client";
-import { prisma } from '../../lib/prisma';
-import { AppError } from '../../utils/AppError';
-import { writeAuditLog } from '../../utils/audit';
-import { clearAssessmentCache, getCache, setCache } from '../../utils/cache';
-import { buildMeta, getPagination } from '../../utils/pagination';
+import {
+	AssessmentStatus,
+	type Difficulty,
+	type Prisma,
+	Role,
+} from "../../../generated/prisma/client";
+import { prisma } from "../../lib/prisma";
+import { AppError } from "../../utils/AppError";
+import { writeAuditLog } from "../../utils/audit";
+import { clearAssessmentCache, getCache, setCache } from "../../utils/cache";
+import { buildMeta, getPagination } from "../../utils/pagination";
 
 type Actor = { id: string; role: Role };
 
@@ -201,4 +206,85 @@ export const publish = async (id: string, actor: Actor) => {
 	await clearAssessmentCache();
 	await writeAuditLog(actor.id, "ASSESSMENT_PUBLISH", "Assessment", id);
 	return result;
+};
+
+const assertNoAttempts = async (assessmentId: string) => {
+	const count = await prisma.attempt.count({
+		where: { assessmentId, deletedAt: null },
+	});
+	if (count > 0) {
+		throw new AppError(
+			409,
+			"Assessment content is locked because candidate attempts already exist",
+		);
+	}
+};
+
+export const update = async (
+	id: string,
+	actor: Actor,
+	payload: Record<string, unknown>,
+) => {
+	const current = await assertManager(id, actor);
+	await assertNoAttempts(id);
+	if (current.status === AssessmentStatus.ARCHIVED) {
+		throw new AppError(409, "Archived assessments cannot be edited");
+	}
+
+	const data: Prisma.AssessmentUpdateInput = {};
+	if (payload.title !== undefined) data.title = payload.title as string;
+	if (payload.slug !== undefined) data.slug = payload.slug as string;
+	if (payload.description !== undefined)
+		data.description = payload.description as string;
+	if (payload.difficulty !== undefined)
+		data.difficulty = payload.difficulty as Difficulty;
+	if (payload.durationMinutes !== undefined) {
+		data.durationMinutes = payload.durationMinutes as number;
+	}
+	if (payload.passingScore !== undefined)
+		data.passingScore = payload.passingScore as number;
+	if (payload.feeCents !== undefined)
+		data.feeCents = payload.feeCents as number;
+	if (payload.currency !== undefined)
+		data.currency = payload.currency as string;
+
+	const result = await prisma.assessment.update({
+		where: { id },
+		data,
+		select: assessmentPublicSelect,
+	});
+	await clearAssessmentCache();
+	await writeAuditLog(actor.id, "ASSESSMENT_UPDATE", "Assessment", id);
+	return result;
+};
+
+export const softDelete = async (id: string, actor: Actor) => {
+	await assertManager(id, actor);
+
+	const activeAttempts = await prisma.attempt.count({
+		where: {
+			assessmentId: id,
+			status: {
+				in: ["IN_PROGRESS", "SUBMITTED", "UNDER_REVIEW"],
+			},
+		},
+	});
+	if (activeAttempts > 0) {
+		throw new AppError(
+			409,
+			"Assessment has active attempts and cannot be deleted",
+		);
+	}
+
+	await prisma.assessment.update({
+		where: { id },
+		data: {
+			deletedAt: new Date(),
+			status: AssessmentStatus.ARCHIVED,
+		},
+	});
+
+	await clearAssessmentCache();
+	await writeAuditLog(actor.id, "ASSESSMENT_SOFT_DELETE", "Assessment", id);
+	return null;
 };

@@ -8,7 +8,8 @@ import {
 	createAssessmentSchema,
 	idParamSchema,
 	listAssessmentSchema,
-	manageListSchema
+	manageListSchema,
+	updateAssessmentSchema,
 } from "./assessment.validation";
 
 export const assessmentRouter = Router();
@@ -51,4 +52,18 @@ assessmentRouter.patch(
 	auth(Role.REVIEWER, Role.ADMIN),
 	validateRequest(idParamSchema),
 	controller.publish,
+);
+
+assessmentRouter.patch(
+	"/:id",
+	auth(Role.REVIEWER, Role.ADMIN),
+	validateRequest(updateAssessmentSchema),
+	controller.update,
+);
+
+assessmentRouter.delete(
+	"/:id",
+	auth(Role.REVIEWER, Role.ADMIN),
+	validateRequest(idParamSchema),
+	controller.softDelete,
 );

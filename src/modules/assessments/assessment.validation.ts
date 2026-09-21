@@ -51,3 +51,27 @@ export const manageListSchema = z.object({
 		status: z.enum(AssessmentStatus).optional(),
 	}),
 });
+
+export const updateAssessmentSchema = z.object({
+	params: z.object({ id: z.uuid() }),
+	body: z
+		.object({
+			title: z.string().trim().min(3).max(150).optional(),
+			slug: slug.optional(),
+			description: z.string().trim().min(20).max(5000).optional(),
+			difficulty: z.enum(Difficulty).optional(),
+			durationMinutes: z.number().int().min(5).max(480).optional(),
+			passingScore: z.number().min(0).max(100).optional(),
+			feeCents: z.number().int().min(0).max(10000000).optional(),
+			currency: z
+				.string()
+				.trim()
+				.length(3)
+				.transform((bool) => bool.toLowerCase())
+				.optional(),
+		})
+		.refine(
+			(data) => Object.keys(data).length > 0,
+			"At least one field is required",
+		),
+});

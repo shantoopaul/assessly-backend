@@ -50,3 +50,41 @@ export const enroll = async (candidateId: string, assessmentId: string) => {
 		throw error;
 	}
 };
+
+export const start = async (candidateId: string, attemptId: string) => {
+	const now = new Date();
+	const result = await prisma.$transaction(async (tx) => {
+		const attempt = await tx.attempt.findFirst({
+			where: { id: attemptId, candidateId, deletedAt: null },
+			include: { assessment: { select: { durationMinutes: true } } },
+		});
+		if (!attempt) throw new AppError(404, "Attempt not found");
+		if (attempt.status === AttemptStatus.IN_PROGRESS) return attempt;
+		if (attempt.status !== AttemptStatus.READY) throw new AppError(409, "Attempt is not ready to start");
+
+		const expiresAt = new Date(now.getTime() + attempt.assessment.durationMinutes * 60_000);
+		const updated = await tx.attempt.updateMany({
+			where: { id: attemptId, candidateId, status: AttemptStatus.READY },
+			data: { status: AttemptStatus.IN_PROGRESS, startedAt: now, expiresAt },
+		});
+		if (updated.count !== 1) throw new AppError(409, "Attempt state changed; reload and try again");
+
+		return tx.attempt.findUniqueOrThrow({
+			where: { id: attemptId },
+			include: {
+				assessment: {
+					select: {
+						id: true, title: true, durationMinutes: true, passingScore: true,
+						questions: {
+							where: { deletedAt: null }, orderBy: { order: "asc" },
+							select: { id: true, prompt: true, type: true, options: true, points: true, order: true },
+						},
+					},
+				},
+			},
+		});
+	});
+
+	await writeAuditLog(candidateId, "ATTEMPT_START", "Attempt", attemptId);
+	return result;
+};

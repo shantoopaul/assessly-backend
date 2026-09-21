@@ -10,3 +10,10 @@ export const enroll = catchAsync(async (req, res) => {
 	const result = await AttemptService.enroll(user.id, assessmentId);
 	sendResponse(res, 201, "Enrollment created successfully", result);
 });
+
+export const start = catchAsync(async (req, res) => {
+	const user = getAuthenticatedUser(req.user);
+	const attemptId = getRouteParam(req.params.attemptId, "attemptId");
+	const result = await AttemptService.start(user.id, attemptId);
+	sendResponse(res, 200, "Assessment attempt started", result);
+});

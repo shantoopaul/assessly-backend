@@ -29,3 +29,9 @@ attemptRouter.put(
 	validateRequest(answerSchema),
 	controller.saveAnswer,
 );
+
+attemptRouter.post(
+	"/:attemptId/submit",
+	validateRequest(attemptIdSchema),
+	controller.submit,
+);

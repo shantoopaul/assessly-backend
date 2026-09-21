@@ -30,3 +30,10 @@ export const saveAnswer = catchAsync(async (req, res) => {
 	);
 	sendResponse(res, 200, "Answer saved successfully", result);
 });
+
+export const submit = catchAsync(async (req, res) => {
+	const user = getAuthenticatedUser(req.user);
+	const attemptId = getRouteParam(req.params.attemptId, "attemptId");
+	const result = await AttemptService.submit(user.id, attemptId);
+	sendResponse(res, 200, "Attempt submitted successfully", result);
+});

@@ -196,3 +196,35 @@ export const saveAnswer = async (
 		select: { id: true, questionId: true, response: true, updatedAt: true },
 	});
 };
+
+export const submit = async (candidateId: string, attemptId: string) => {
+	const result = await prisma.$transaction(async (tx) => {
+		const attempt = await tx.attempt.findFirst({
+			where: { id: attemptId, candidateId, deletedAt: null },
+			include: {
+				assessment: { include: { questions: { where: { deletedAt: null }, select: { id: true, points: true, type: true } } } },
+				answers: true,
+			},
+		});
+
+		if (!attempt) throw new AppError(404, "Attempt not found");
+		if (attempt.status !== AttemptStatus.IN_PROGRESS) throw new AppError(409, "Only an in-progress attempt can be submitted");
+
+		const answerMap = new Map(attempt.answers.map((answer) => [answer.questionId, answer]));
+		const autoScore = attempt.assessment.questions.reduce((sum, question) => sum + (answerMap.get(question.id)?.autoScore ?? 0), 0);
+
+		const updated = await tx.attempt.updateMany({
+			where: { id: attemptId, candidateId, status: AttemptStatus.IN_PROGRESS },
+			data: { status: AttemptStatus.SUBMITTED, submittedAt: new Date(), autoScore },
+		});
+		if (updated.count !== 1) throw new AppError(409, "Attempt was already submitted");
+
+		return tx.attempt.findUniqueOrThrow({
+			where: { id: attemptId },
+			select: { id: true, status: true, submittedAt: true, autoScore: true },
+		});
+	});
+
+	await writeAuditLog(candidateId, "ATTEMPT_SUBMIT", "Attempt", attemptId);
+	return result;
+};

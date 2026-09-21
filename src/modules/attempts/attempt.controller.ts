@@ -37,3 +37,22 @@ export const submit = catchAsync(async (req, res) => {
 	const result = await AttemptService.submit(user.id, attemptId);
 	sendResponse(res, 200, "Attempt submitted successfully", result);
 });
+
+export const listMine = catchAsync(async (req, res) => {
+	const user = getAuthenticatedUser(req.user);
+	const result = await AttemptService.listMine(user.id, req.query as never);
+	sendResponse(
+		res,
+		200,
+		"Attempts retrieved successfully",
+		result.data,
+		result.meta,
+	);
+});
+
+export const getMine = catchAsync(async (req, res) => {
+	const user = getAuthenticatedUser(req.user);
+	const attemptId = getRouteParam(req.params.attemptId, "attemptId");
+	const result = await AttemptService.getCandidateAttempt(user.id, attemptId);
+	sendResponse(res, 200, "Attempt retrieved successfully", result);
+});

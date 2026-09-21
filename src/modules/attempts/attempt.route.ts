@@ -7,15 +7,29 @@ import {
 	answerSchema,
 	assessmentIdSchema,
 	attemptIdSchema,
+	myAttemptsSchema,
 } from "./attempt.validation";
 
 export const attemptRouter = Router();
+
 attemptRouter.use(auth(Role.CANDIDATE));
 
 attemptRouter.post(
 	"/enroll/:assessmentId",
 	validateRequest(assessmentIdSchema),
 	controller.enroll,
+);
+
+attemptRouter.get(
+	"/my",
+	validateRequest(myAttemptsSchema),
+	controller.listMine,
+);
+
+attemptRouter.get(
+	"/:attemptId",
+	validateRequest(attemptIdSchema),
+	controller.getMine,
 );
 
 attemptRouter.post(

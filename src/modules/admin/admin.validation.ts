@@ -16,3 +16,8 @@ export const updateStatusSchema = z.object({
 	params: z.object({ userId: z.uuid() }),
 	body: z.object({ status: z.enum(UserStatus) }),
 });
+
+export const updateRoleSchema = z.object({
+	params: z.object({ userId: z.uuid() }),
+	body: z.object({ role: z.enum(Role) }),
+});

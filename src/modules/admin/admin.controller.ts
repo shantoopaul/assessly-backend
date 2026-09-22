@@ -25,3 +25,14 @@ export const updateStatus = catchAsync(async (req, res) => {
 	);
 	sendResponse(res, 200, "User status updated successfully", result);
 });
+
+export const updateRole = catchAsync(async (req, res) => {
+	const user = getAuthenticatedUser(req.user);
+	const userId = getRouteParam(req.params.userId, "userId");
+	const result = await AdminService.updateUserRole(
+		user.id,
+		userId,
+		req.body.role,
+	);
+	sendResponse(res, 200, "User role updated successfully", result);
+});

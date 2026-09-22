@@ -3,7 +3,11 @@ import { Role } from "../../../generated/prisma/enums";
 import { auth } from "../../middleware/auth";
 import { validateRequest } from "../../middleware/validateRequest";
 import * as controller from "./admin.controller";
-import { listUsersSchema, updateStatusSchema } from "./admin.validation";
+import {
+	listUsersSchema,
+	updateRoleSchema,
+	updateStatusSchema,
+} from "./admin.validation";
 
 export const adminRouter = Router();
 adminRouter.use(auth(Role.ADMIN));
@@ -18,4 +22,10 @@ adminRouter.patch(
 	"/users/:userId/status",
 	validateRequest(updateStatusSchema),
 	controller.updateStatus,
+);
+
+adminRouter.patch(
+	"/users/:userId/role",
+	validateRequest(updateRoleSchema),
+	controller.updateRole,
 );

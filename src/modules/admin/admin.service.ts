@@ -1,5 +1,9 @@
 import type { Prisma } from "../../../generated/prisma/client";
-import { Role, UserStatus } from "../../../generated/prisma/enums";
+import {
+	AttemptStatus,
+	Role,
+	UserStatus,
+} from "../../../generated/prisma/enums";
 import { prisma } from "../../lib/prisma";
 import { AppError } from "../../utils/AppError";
 import { writeAuditLog } from "../../utils/audit";
@@ -74,6 +78,47 @@ export const updateUserStatus = async (
 	});
 	await writeAuditLog(adminId, "ADMIN_USER_STATUS_UPDATE", "User", userId, {
 		status,
+	});
+	return updated;
+};
+
+export const updateUserRole = async (
+	adminId: string,
+	userId: string,
+	role: Role,
+) => {
+	if (adminId === userId && role !== Role.ADMIN)
+		throw new AppError(409, "You cannot remove your own admin role");
+	const user = await prisma.user.findFirst({
+		where: { id: userId, deletedAt: null },
+	});
+	if (!user) throw new AppError(404, "User not found");
+
+	const activeWork = await prisma.attempt.count({
+		where: {
+			OR: [{ candidateId: userId }, { reviewerId: userId }],
+			status: {
+				in: [
+					AttemptStatus.IN_PROGRESS,
+					AttemptStatus.SUBMITTED,
+					AttemptStatus.UNDER_REVIEW,
+				],
+			},
+		},
+	});
+	if (activeWork > 0 && user.role !== role)
+		throw new AppError(
+			409,
+			"User role cannot change while assessment work is active",
+		);
+
+	const updated = await prisma.user.update({
+		where: { id: userId },
+		data: { role, tokenVersion: { increment: 1 } },
+		select: { id: true, name: true, email: true, role: true, status: true },
+	});
+	await writeAuditLog(adminId, "ADMIN_USER_ROLE_UPDATE", "User", userId, {
+		role,
 	});
 	return updated;
 };

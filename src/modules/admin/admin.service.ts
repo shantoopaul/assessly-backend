@@ -122,3 +122,41 @@ export const updateUserRole = async (
 	});
 	return updated;
 };
+
+export const softDeleteUser = async (adminId: string, userId: string) => {
+	if (adminId === userId)
+		throw new AppError(409, "You cannot delete your own admin account");
+	const user = await prisma.user.findFirst({
+		where: { id: userId, deletedAt: null },
+	});
+	if (!user) throw new AppError(404, "User not found");
+
+	const activeAttempts = await prisma.attempt.count({
+		where: {
+			OR: [{ candidateId: userId }, { reviewerId: userId }],
+			status: {
+				in: [
+					AttemptStatus.IN_PROGRESS,
+					AttemptStatus.SUBMITTED,
+					AttemptStatus.UNDER_REVIEW,
+				],
+			},
+		},
+	});
+	if (activeAttempts > 0)
+		throw new AppError(
+			409,
+			"User has active assessment work and cannot be deleted",
+		);
+
+	await prisma.user.update({
+		where: { id: userId },
+		data: {
+			deletedAt: new Date(),
+			status: UserStatus.BLOCKED,
+			tokenVersion: { increment: 1 },
+		},
+	});
+	await writeAuditLog(adminId, "ADMIN_USER_SOFT_DELETE", "User", userId);
+	return null;
+};

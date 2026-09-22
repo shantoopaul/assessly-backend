@@ -36,3 +36,10 @@ export const updateRole = catchAsync(async (req, res) => {
 	);
 	sendResponse(res, 200, "User role updated successfully", result);
 });
+
+export const softDeleteUser = catchAsync(async (req, res) => {
+	const user = getAuthenticatedUser(req.user);
+	const userId = getRouteParam(req.params.userId, "userId");
+	await AdminService.softDeleteUser(user.id, userId);
+	sendResponse(res, 200, "User deleted successfully", null);
+});

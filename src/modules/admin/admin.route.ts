@@ -7,6 +7,7 @@ import {
 	listUsersSchema,
 	updateRoleSchema,
 	updateStatusSchema,
+	userIdSchema,
 } from "./admin.validation";
 
 export const adminRouter = Router();
@@ -28,4 +29,10 @@ adminRouter.patch(
 	"/users/:userId/role",
 	validateRequest(updateRoleSchema),
 	controller.updateRole,
+);
+
+adminRouter.delete(
+	"/users/:userId",
+	validateRequest(userIdSchema),
+	controller.softDeleteUser,
 );

@@ -21,3 +21,7 @@ export const updateRoleSchema = z.object({
 	params: z.object({ userId: z.uuid() }),
 	body: z.object({ role: z.enum(Role) }),
 });
+
+export const userIdSchema = z.object({
+	params: z.object({ userId: z.uuid() }),
+});

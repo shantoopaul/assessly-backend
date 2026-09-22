@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { adminRouter } from "../modules/admin/admin.route";
 import { assessmentRouter } from "../modules/assessments/assessment.route";
 import { attemptRouter } from "../modules/attempts/attempt.route";
 import { authRouter } from "../modules/auth/auth.route";
@@ -14,3 +15,4 @@ apiRouter.use("/assessments", assessmentRouter);
 apiRouter.use("/attempts", attemptRouter);
 apiRouter.use("/reviews", reviewRouter);
 apiRouter.use("/payments", paymentRouter);
+apiRouter.use("/admin", adminRouter);

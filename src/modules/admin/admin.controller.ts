@@ -48,3 +48,14 @@ export const stats = catchAsync(async (_req, res) => {
 	const result = await AdminService.stats();
 	sendResponse(res, 200, "Dashboard statistics retrieved successfully", result);
 });
+
+export const auditLogs = catchAsync(async (req, res) => {
+	const result = await AdminService.auditLogs(req.query as never);
+	sendResponse(
+		res,
+		200,
+		"Audit logs retrieved successfully",
+		result.data,
+		result.meta,
+	);
+});

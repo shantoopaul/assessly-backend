@@ -60,8 +60,10 @@ export const updateUserStatus = async (
 	userId: string,
 	status: UserStatus,
 ) => {
-	if (adminId === userId && status === UserStatus.BLOCKED)
+	if (adminId === userId && status === UserStatus.BLOCKED) {
 		throw new AppError(409, "You cannot block your own admin account");
+	}
+
 	const user = await prisma.user.findFirst({
 		where: { id: userId, deletedAt: null },
 	});
@@ -75,8 +77,15 @@ export const updateUserStatus = async (
 				? { tokenVersion: { increment: 1 } }
 				: {}),
 		},
-		select: { id: true, name: true, email: true, role: true, status: true },
+		select: {
+			id: true,
+			name: true,
+			email: true,
+			role: true,
+			status: true,
+		},
 	});
+
 	await writeAuditLog(adminId, "ADMIN_USER_STATUS_UPDATE", "User", userId, {
 		status,
 	});
@@ -88,8 +97,10 @@ export const updateUserRole = async (
 	userId: string,
 	role: Role,
 ) => {
-	if (adminId === userId && role !== Role.ADMIN)
+	if (adminId === userId && role !== Role.ADMIN) {
 		throw new AppError(409, "You cannot remove your own admin role");
+	}
+
 	const user = await prisma.user.findFirst({
 		where: { id: userId, deletedAt: null },
 	});
@@ -107,17 +118,28 @@ export const updateUserRole = async (
 			},
 		},
 	});
-	if (activeWork > 0 && user.role !== role)
+	if (activeWork > 0 && user.role !== role) {
 		throw new AppError(
 			409,
 			"User role cannot change while assessment work is active",
 		);
+	}
 
 	const updated = await prisma.user.update({
 		where: { id: userId },
-		data: { role, tokenVersion: { increment: 1 } },
-		select: { id: true, name: true, email: true, role: true, status: true },
+		data: {
+			role,
+			tokenVersion: { increment: 1 },
+		},
+		select: {
+			id: true,
+			name: true,
+			email: true,
+			role: true,
+			status: true,
+		},
 	});
+
 	await writeAuditLog(adminId, "ADMIN_USER_ROLE_UPDATE", "User", userId, {
 		role,
 	});
@@ -125,8 +147,10 @@ export const updateUserRole = async (
 };
 
 export const softDeleteUser = async (adminId: string, userId: string) => {
-	if (adminId === userId)
+	if (adminId === userId) {
 		throw new AppError(409, "You cannot delete your own admin account");
+	}
+
 	const user = await prisma.user.findFirst({
 		where: { id: userId, deletedAt: null },
 	});
@@ -144,11 +168,12 @@ export const softDeleteUser = async (adminId: string, userId: string) => {
 			},
 		},
 	});
-	if (activeAttempts > 0)
+	if (activeAttempts > 0) {
 		throw new AppError(
 			409,
 			"User has active assessment work and cannot be deleted",
 		);
+	}
 
 	await prisma.user.update({
 		where: { id: userId },
@@ -158,6 +183,7 @@ export const softDeleteUser = async (adminId: string, userId: string) => {
 			tokenVersion: { increment: 1 },
 		},
 	});
+
 	await writeAuditLog(adminId, "ADMIN_USER_SOFT_DELETE", "User", userId);
 	return null;
 };
@@ -196,4 +222,43 @@ export const stats = async () => {
 			grossAmountInMinorUnits: payments._sum.amountCents ?? 0,
 		},
 	};
+};
+
+export const auditLogs = async (query: {
+	page: number;
+	limit: number;
+	action?: string;
+	entityType?: string;
+}) => {
+	const { page, limit, skip } = getPagination(query.page, query.limit);
+	const where: Prisma.AuditLogWhereInput = {
+		...(query.action
+			? { action: { contains: query.action, mode: "insensitive" } }
+			: {}),
+		...(query.entityType
+			? { entityType: { contains: query.entityType, mode: "insensitive" } }
+			: {}),
+	};
+
+	const [data, total] = await prisma.$transaction([
+		prisma.auditLog.findMany({
+			where,
+			skip,
+			take: limit,
+			orderBy: { createdAt: "desc" },
+			include: {
+				actor: {
+					select: {
+						id: true,
+						name: true,
+						email: true,
+						role: true,
+					},
+				},
+			},
+		}),
+		prisma.auditLog.count({ where }),
+	]);
+
+	return { data, meta: buildMeta(page, limit, total) };
 };

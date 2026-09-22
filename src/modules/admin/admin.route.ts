@@ -4,6 +4,7 @@ import { auth } from "../../middleware/auth";
 import { validateRequest } from "../../middleware/validateRequest";
 import * as controller from "./admin.controller";
 import {
+	auditListSchema,
 	listUsersSchema,
 	updateRoleSchema,
 	updateStatusSchema,
@@ -38,3 +39,9 @@ adminRouter.delete(
 );
 
 adminRouter.get("/stats", controller.stats);
+
+adminRouter.get(
+	"/audit-logs",
+	validateRequest(auditListSchema),
+	controller.auditLogs,
+);

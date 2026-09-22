@@ -39,3 +39,14 @@ paymentRouter.get(
 	validateRequest(paymentIdSchema),
 	controller.getById,
 );
+
+paymentRouter.post(
+	"/attempts/:attemptId/checkout",
+	auth(Role.CANDIDATE),
+	validateRequest(attemptPaymentSchema),
+	controller.createCheckoutSession,
+);
+
+paymentRouter.get("/checkout/success", controller.checkoutSuccess);
+
+paymentRouter.get("/checkout/cancel", controller.checkoutCancel);

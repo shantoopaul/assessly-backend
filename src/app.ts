@@ -5,6 +5,7 @@ import { config } from "./config";
 import { globalErrorHandler } from "./middleware/globalErrorHandler";
 import { notFound } from "./middleware/notFound";
 import { apiLimiter } from "./middleware/rateLimiter";
+import { webhook as stripeWebhook } from "./modules/payments/payment.controller";
 import { apiRouter } from "./routes";
 
 export const app = express();
@@ -19,6 +20,12 @@ app.use(
 				: config.FRONTEND_URL.split(",").map((origin) => origin.trim()),
 		credentials: true,
 	}),
+);
+
+app.post(
+	"/api/v1/payments/webhook",
+	express.raw({ type: "application/json" }),
+	stripeWebhook,
 );
 
 app.use(express.json({ limit: "1mb" }));

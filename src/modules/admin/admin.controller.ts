@@ -43,3 +43,8 @@ export const softDeleteUser = catchAsync(async (req, res) => {
 	await AdminService.softDeleteUser(user.id, userId);
 	sendResponse(res, 200, "User deleted successfully", null);
 });
+
+export const stats = catchAsync(async (_req, res) => {
+	const result = await AdminService.stats();
+	sendResponse(res, 200, "Dashboard statistics retrieved successfully", result);
+});

@@ -36,3 +36,5 @@ adminRouter.delete(
 	validateRequest(userIdSchema),
 	controller.softDeleteUser,
 );
+
+adminRouter.get("/stats", controller.stats);

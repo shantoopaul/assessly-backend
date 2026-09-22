@@ -1,5 +1,6 @@
 import type { Prisma } from "../../../generated/prisma/client";
 import {
+	AssessmentStatus,
 	AttemptStatus,
 	Role,
 	UserStatus,
@@ -159,4 +160,40 @@ export const softDeleteUser = async (adminId: string, userId: string) => {
 	});
 	await writeAuditLog(adminId, "ADMIN_USER_SOFT_DELETE", "User", userId);
 	return null;
+};
+
+export const stats = async () => {
+	const [
+		users,
+		candidates,
+		reviewers,
+		publishedAssessments,
+		attempts,
+		evaluated,
+		payments,
+	] = await prisma.$transaction([
+		prisma.user.count({ where: { deletedAt: null } }),
+		prisma.user.count({ where: { deletedAt: null, role: Role.CANDIDATE } }),
+		prisma.user.count({ where: { deletedAt: null, role: Role.REVIEWER } }),
+		prisma.assessment.count({
+			where: { deletedAt: null, status: AssessmentStatus.PUBLISHED },
+		}),
+		prisma.attempt.count({ where: { deletedAt: null } }),
+		prisma.attempt.count({ where: { status: AttemptStatus.EVALUATED } }),
+		prisma.payment.aggregate({
+			where: { status: "SUCCEEDED" },
+			_count: { id: true },
+			_sum: { amountCents: true },
+		}),
+	]);
+
+	return {
+		users: { total: users, candidates, reviewers },
+		assessments: { published: publishedAssessments },
+		attempts: { total: attempts, evaluated },
+		payments: {
+			successfulCount: payments._count.id,
+			grossAmountInMinorUnits: payments._sum.amountCents ?? 0,
+		},
+	};
 };

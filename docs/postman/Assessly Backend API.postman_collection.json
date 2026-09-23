@@ -1,0 +1,2106 @@
+{
+  "info": {
+    "_postman_id": "f0ad437f-97b2-4b1c-9371-319d010ecef1",
+    "name": "Assessly Backend API",
+    "description": "# Assessly Backend API\n\nA developer assessment platform backend built with Node.js, TypeScript, Express, Prisma, PostgreSQL, Redis, and Stripe.\n\n## Roles\n- **CANDIDATE** — Takes assessments, pays for attempts, views results\n- **REVIEWER** — Creates assessments, manages questions, evaluates submissions\n- **ADMIN** — Manages users, views stats, monitors audit logs\n\n## Auth\nAll protected routes use `Authorization: Bearer <accessToken>`.\n\n## Response Format\n**Success:** `{ \"success\": true, \"message\": \"...\", \"data\": {}, \"meta\": {} }`\n**Error:** `{ \"success\": false, \"message\": \"...\", \"errors\": [] }`\n\n## Demo Credentials\n| Role | Email | Password |\n|---|---|---|\n| Admin | testeradmin@gmail.com | Tester@admin12345 |\n| Reviewer | testerreviewer@gmail.com | Tester@reviewer12345 |\n| Candidate | testercandidate@gmail.com | Tester@candidate12345 |\n\n## Stripe Test Card\n`4242 4242 4242 4242` — any future expiry, any CVC, any ZIP.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "55072385",
+    "_collection_link": "https://go.postman.co/collection/55072385-f0ad437f-97b2-4b1c-9371-319d010ecef1?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "01 - Authentication",
+      "item": [
+        {
+          "name": "1.1 Register (Candidate)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"Response has success true\", () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.success).to.be.true;",
+                  "    pm.expect(json.data.user).to.have.property(\"id\");",
+                  "});",
+                  "pm.test(\"Tokens returned\", () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.data).to.have.property(\"accessToken\");",
+                  "    pm.expect(json.data).to.have.property(\"refreshToken\");",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "if (json.success) {",
+                  "    pm.environment.set(\"candidateAccessToken\", json.data.accessToken);",
+                  "    pm.environment.set(\"refreshToken\", json.data.refreshToken);",
+                  "    pm.environment.set(\"accessToken\", json.data.accessToken);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"John Candidate\",\n  \"email\": \"john.candidate@example.com\",\n  \"password\": \"Password123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            },
+            "description": "Registers a new candidate account.\n\n**Auth:** Public\n\n**Body:**\n- `name` (string, 2-80 chars)\n- `email` (valid email, lowercased)\n- `password` (8-72 chars, must include upper, lower, digit)\n\n**Response 201:**\n```json\n{\n  \"success\": true,\n  \"message\": \"Candidate registered successfully\",\n  \"data\": {\n    \"user\": { \"id\", \"name\", \"email\", \"role\", \"status\" },\n    \"accessToken\": \"...\",\n    \"refreshToken\": \"...\"\n  }\n}\n```"
+          },
+          "response": []
+        },
+        {
+          "name": "1.2a Login (Admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "if (json.success) {",
+                  "    pm.environment.set(\"adminAccessToken\", json.data.accessToken);",
+                  "    pm.environment.set(\"accessToken\", json.data.accessToken);",
+                  "    pm.environment.set(\"refreshToken\", json.data.refreshToken);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"testeradmin@gmail.com\",\n  \"password\": \"Tester@admin12345\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Logs in the seeded admin account. Saves `adminAccessToken` for admin requests."
+          },
+          "response": []
+        },
+        {
+          "name": "1.2b Login (Reviewer)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "if (json.success) {",
+                  "    pm.environment.set(\"reviewerAccessToken\", json.data.accessToken);",
+                  "    pm.environment.set(\"accessToken\", json.data.accessToken);",
+                  "    pm.environment.set(\"refreshToken\", json.data.refreshToken);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"testerreviewer@gmail.com\",\n  \"password\": \"Tester@reviewer12345\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Logs in the seeded reviewer account. Saves `reviewerAccessToken` for reviewer requests."
+          },
+          "response": []
+        },
+        {
+          "name": "1.2c Login (Candidate)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", () => pm.response.to.have.status(200));\nconst json = pm.response.json();\nif (json.success) {\n    pm.environment.set(\"candidateAccessToken\", json.data.accessToken);\n    pm.environment.set(\"accessToken\", json.data.accessToken);\n    pm.environment.set(\"refreshToken\", json.data.refreshToken);\n}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"john.candidate@example.com\",\n  \"password\": \"Password123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Logs in the seeded candidate account. Saves `candidateAccessToken` for candidate requests."
+          },
+          "response": []
+        },
+        {
+          "name": "1.3 Google Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "if (json.success) {",
+                  "    pm.environment.set(\"accessToken\", json.data.accessToken);",
+                  "    pm.environment.set(\"refreshToken\", json.data.refreshToken);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"credential\": \"<GOOGLE_ID_TOKEN_FROM_FRONTEND>\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/google",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "google"
+              ]
+            },
+            "description": "Authenticates via Google ID token (from Google Identity Services).\n\n**Body:**\n- `credential` — Google ID token (JWT) with `aud` matching `GOOGLE_CLIENT_ID`"
+          },
+          "response": []
+        },
+        {
+          "name": "1.4 Refresh Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "if (json.success) {",
+                  "    pm.environment.set(\"accessToken\", json.data.accessToken);",
+                  "    pm.environment.set(\"refreshToken\", json.data.refreshToken);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/refresh-token",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "refresh-token"
+              ]
+            },
+            "description": "Exchanges a valid refresh token for a new access + refresh token pair.\n\n**Auth:** Public (requires valid refresh token in body)"
+          },
+          "response": []
+        },
+        {
+          "name": "1.5 Logout",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", () => pm.response.to.have.status(200));",
+                  "pm.environment.unset(\"accessToken\");",
+                  "pm.environment.unset(\"refreshToken\");"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "logout"
+              ]
+            },
+            "description": "Invalidates the refresh token by incrementing `tokenVersion` on the user, revoking all sessions."
+          },
+          "response": []
+        }
+      ],
+      "description": "Handles user registration, login (email/password + Google), token refresh, and logout. All endpoints are public."
+    },
+    {
+      "name": "02 - User Profile",
+      "item": [
+        {
+          "name": "2.1 Get My Profile",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Profile returned\", () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.data).to.have.property(\"email\");",
+                  "    pm.expect(json.data).to.have.property(\"role\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/users/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "me"
+              ]
+            },
+            "description": "Returns the authenticated user's profile.\n\n**Auth:** Bearer Token (any role)"
+          },
+          "response": []
+        },
+        {
+          "name": "2.2 Update My Profile",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"John Updated\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "me"
+              ]
+            },
+            "description": "Updates the authenticated user's name.\n\n**Auth:** Bearer Token (any role)\n\n**Body:**\n- `name` (string, 2-80 chars) — optional, at least one field required"
+          },
+          "response": []
+        },
+        {
+          "name": "2.3 Upload Avatar",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Avatar URL set\", () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.data.avatarUrl).to.be.a(\"string\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "profileImage",
+                  "type": "file",
+                  "description": "JPEG, PNG, or WebP image (max 2MB)",
+                  "value": null
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users/me/avatar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "me",
+                "avatar"
+              ]
+            },
+            "description": "Uploads a profile avatar to Cloudinary.\n\n**Auth:** Bearer Token (any role)\n\n**Body:** form-data with `profileImage` file (JPEG/PNG/WebP, ≤2MB)"
+          },
+          "response": []
+        }
+      ],
+      "description": "Profile management for authenticated users (all roles)."
+    },
+    {
+      "name": "03 - Assessments (Public)",
+      "item": [
+        {
+          "name": "3.1 List Published Assessments",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", () => pm.response.to.have.status(200));\npm.test(\"Pagination meta present\", () => {\n    const json = pm.response.json();\n    pm.expect(json.meta).to.have.property(\"total\");\n    pm.expect(json.meta).to.have.property(\"totalPages\");\n});\nconst json = pm.response.json();\nif (json.data && json.data.length > 0) {\n    pm.environment.set(\"assessmentId\", json.data[0].id);\n}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/assessments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "assessments"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number (min 1)",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "Items per page (1-100)",
+                  "disabled": true
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "description": "Search title/description",
+                  "disabled": true
+                },
+                {
+                  "key": "difficulty",
+                  "value": "MID",
+                  "description": "JUNIOR | MID | SENIOR",
+                  "disabled": true
+                },
+                {
+                  "key": "sortBy",
+                  "value": "createdAt",
+                  "description": "createdAt | title | feeCents | durationMinutes",
+                  "disabled": true
+                },
+                {
+                  "key": "sortOrder",
+                  "value": "desc",
+                  "description": "asc | desc",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Lists all PUBLISHED assessments with pagination, search, filter, and sort.\n\n**Auth:** Public\n\n**Cached:** Redis (60s)"
+          },
+          "response": []
+        },
+        {
+          "name": "3.2 Get Assessment by ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/assessments/{{assessmentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "assessments",
+                "{{assessmentId}}"
+              ]
+            },
+            "description": "Returns a single published assessment by ID.\n\n**Auth:** Public\n\n**Errors:**\n- 404 — Not found or not published"
+          },
+          "response": []
+        }
+      ],
+      "description": "Public discovery of published assessments. No authentication required."
+    },
+    {
+      "name": "04 - Assessments (Manage)",
+      "item": [
+        {
+          "name": "4.1 Create Assessment",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "if (json.success) {",
+                  "    pm.environment.set(\"assessmentId\", json.data.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Frontend Developer Assessment\",\n  \"slug\": \"frontend-developer-assessment\",\n  \"description\": \"A comprehensive assessment covering HTML, CSS, JavaScript, and React fundamentals for frontend developer candidates.\",\n  \"difficulty\": \"MID\",\n  \"durationMinutes\": 60,\n  \"passingScore\": 70,\n  \"feeCents\": 1000,\n  \"currency\": \"usd\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/assessments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "assessments"
+              ]
+            },
+            "description": "Creates a new assessment in DRAFT status.\n\n**Auth:** Bearer Token (REVIEWER or ADMIN)\n\n**Body:**\n- `title` (string, 3-150)\n- `slug` (lowercase kebab-case, unique)\n- `description` (string, 20-5000)\n- `difficulty` (JUNIOR | MID | SENIOR)\n- `durationMinutes` (5-480)\n- `passingScore` (0-100)\n- `feeCents` (0-10000000)\n- `currency` (3-letter, lowercased)"
+          },
+          "response": []
+        },
+        {
+          "name": "4.2 List Managed Assessments",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/assessments/manage/mine?page=1&limit=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "assessments",
+                "manage",
+                "mine"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "status",
+                  "value": "DRAFT",
+                  "description": "DRAFT | PUBLISHED | ARCHIVED",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Lists assessments managed by the authenticated reviewer (or all for admins).\n\n**Auth:** Bearer Token (REVIEWER or ADMIN)"
+          },
+          "response": []
+        },
+        {
+          "name": "4.3 Get Managed Assessment",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/assessments/manage/{{assessmentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "assessments",
+                "manage",
+                "{{assessmentId}}"
+              ]
+            },
+            "description": "Returns full assessment detail (including questions and attempt counts) for management.\n\n**Auth:** Bearer Token (REVIEWER or ADMIN)"
+          },
+          "response": []
+        },
+        {
+          "name": "4.4 Update Assessment",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Frontend Developer Assessment v2\",\n  \"durationMinutes\": 75\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/assessments/{{assessmentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "assessments",
+                "{{assessmentId}}"
+              ]
+            },
+            "description": "Updates an assessment. Blocked if any attempts exist (content locked).\n\n**Auth:** Bearer Token (REVIEWER or ADMIN)\n\n**Errors:**\n- 409 — Attempts exist or assessment is ARCHIVED"
+          },
+          "response": []
+        },
+        {
+          "name": "4.5 Publish Assessment",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Status is PUBLISHED\", () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.data.status).to.eql(\"PUBLISHED\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/assessments/{{assessmentId}}/publish",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "assessments",
+                "{{assessmentId}}",
+                "publish"
+              ]
+            },
+            "description": "Publishes a DRAFT assessment. Requires at least one active question with positive total points.\n\n**Auth:** Bearer Token (REVIEWER or ADMIN)\n\n**Errors:**\n- 409 — No questions, zero points, or already ARCHIVED"
+          },
+          "response": []
+        },
+        {
+          "name": "4.6 Soft Delete Assessment",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/assessments/{{assessmentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "assessments",
+                "{{assessmentId}}"
+              ]
+            },
+            "description": "Soft deletes an assessment (sets `deletedAt`, status ARCHIVED). Blocked if active attempts exist.\n\n**Auth:** Bearer Token (REVIEWER or ADMIN)"
+          },
+          "response": []
+        }
+      ],
+      "description": "Assessment CRUD for REVIEWER and ADMIN roles. Reviewers can only manage their own assessments; admins can manage all."
+    },
+    {
+      "name": "05 - Questions",
+      "item": [
+        {
+          "name": "5.1 Add Question (MCQ)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "if (json.success) {",
+                  "    pm.environment.set(\"questionId\", json.data.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"prompt\": \"Which hook is used to manage state in a functional React component?\",\n  \"type\": \"MCQ\",\n  \"options\": [\"useState\", \"useEffect\", \"useContext\", \"useReducer\"],\n  \"correctAnswer\": \"useState\",\n  \"points\": 10,\n  \"order\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/assessments/{{assessmentId}}/questions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "assessments",
+                "{{assessmentId}}",
+                "questions"
+              ]
+            },
+            "description": "Adds an MCQ question. `correctAnswer` must be one of `options`.\n\n**Auth:** Bearer Token (REVIEWER or ADMIN)"
+          },
+          "response": []
+        },
+        {
+          "name": "5.2 Add Question (TEXT)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "if (json.success) {",
+                  "    pm.environment.set(\"questionId\", json.data.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"prompt\": \"Explain the difference between `let`, `const`, and `var` in JavaScript. Provide examples.\",\n  \"type\": \"TEXT\",\n  \"points\": 20,\n  \"order\": 2\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/assessments/{{assessmentId}}/questions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "assessments",
+                "{{assessmentId}}",
+                "questions"
+              ]
+            },
+            "description": "Adds a TEXT (free-form) question.\n\n**Auth:** Bearer Token (REVIEWER or ADMIN)"
+          },
+          "response": []
+        },
+        {
+          "name": "5.3 Add Question (CODE)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "if (json.success) {",
+                  "    pm.environment.set(\"questionId\", json.data.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"prompt\": \"Write a function `debounce(fn, delay)` that delays invoking `fn` until after `delay` ms have elapsed since the last call.\",\n  \"type\": \"CODE\",\n  \"points\": 30,\n  \"order\": 3\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/assessments/{{assessmentId}}/questions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "assessments",
+                "{{assessmentId}}",
+                "questions"
+              ]
+            },
+            "description": "Adds a CODE question.\n\n**Auth:** Bearer Token (REVIEWER or ADMIN)"
+          },
+          "response": []
+        },
+        {
+          "name": "5.4 Update Question",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"prompt\": \"Which hook is used to manage state in a functional React component? (updated)\",\n  \"points\": 15\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/assessments/{{assessmentId}}/questions/{{questionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "assessments",
+                "{{assessmentId}}",
+                "questions",
+                "{{questionId}}"
+              ]
+            },
+            "description": "Updates a question. For MCQs, validates that `correctAnswer` matches one of `options`.\n\n**Auth:** Bearer Token (REVIEWER or ADMIN)"
+          },
+          "response": []
+        },
+        {
+          "name": "5.5 Delete Question (Soft)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/assessments/{{assessmentId}}/questions/{{questionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "assessments",
+                "{{assessmentId}}",
+                "questions",
+                "{{questionId}}"
+              ]
+            },
+            "description": "Soft deletes a question (sets `deletedAt`). Blocked if attempts exist.\n\n**Auth:** Bearer Token (REVIEWER or ADMIN)"
+          },
+          "response": []
+        }
+      ],
+      "description": "Question management for assessments. Blocked if any attempts exist on the parent assessment."
+    },
+    {
+      "name": "06 - Attempts (Candidate)",
+      "item": [
+        {
+          "name": "6.1 Enroll in Assessment",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "if (json.success) {",
+                  "    pm.environment.set(\"attemptId\", json.data.id);",
+                  "    pm.test(\"Attempt status is valid\", () => {",
+                  "        pm.expect([\"READY\", \"PENDING_PAYMENT\"]).to.include(json.data.status);",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/attempts/enroll/{{assessmentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "attempts",
+                "enroll",
+                "{{assessmentId}}"
+              ]
+            },
+            "description": "Enrolls the candidate in an assessment.\n\n- Free assessment → status = READY\n- Paid assessment → status = PENDING_PAYMENT (must pay before starting)\n\n**Auth:** Bearer Token (CANDIDATE)\n\n**Errors:**\n- 409 — Active attempt already exists"
+          },
+          "response": []
+        },
+        {
+          "name": "6.2 List My Attempts",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/attempts/my?page=1&limit=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "attempts",
+                "my"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "status",
+                  "value": "READY",
+                  "description": "PENDING_PAYMENT | READY | IN_PROGRESS | SUBMITTED | UNDER_REVIEW | EVALUATED | CANCELLED",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Lists the authenticated candidate's attempts with pagination and status filter.\n\n**Auth:** Bearer Token (CANDIDATE)"
+          },
+          "response": []
+        },
+        {
+          "name": "6.3 Get My Attempt",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/attempts/{{attemptId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "attempts",
+                "{{attemptId}}"
+              ]
+            },
+            "description": "Returns attempt detail. If started, includes all questions and answers.\n\n**Auth:** Bearer Token (CANDIDATE)"
+          },
+          "response": []
+        },
+        {
+          "name": "6.4 Start Attempt",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "if (json.success) {",
+                  "    pm.test(\"Status is IN_PROGRESS\", () => {",
+                  "        pm.expect(json.data.status).to.eql(\"IN_PROGRESS\");",
+                  "        pm.expect(json.data.expiresAt).to.be.a(\"string\");",
+                  "    });",
+                  "    if (json.data.assessment && json.data.assessment.questions && json.data.assessment.questions.length > 0) {",
+                  "        pm.environment.set(\"questionId\", json.data.assessment.questions[0].id);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/attempts/{{attemptId}}/start",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "attempts",
+                "{{attemptId}}",
+                "start"
+              ]
+            },
+            "description": "Starts an attempt (READY → IN_PROGRESS), sets `startedAt` and `expiresAt` based on assessment duration, and returns the questions.\n\n**Auth:** Bearer Token (CANDIDATE)\n\n**Errors:**\n- 409 — Not READY or already started"
+          },
+          "response": []
+        },
+        {
+          "name": "6.5 Save Answer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"response\": \"useState\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/attempts/{{attemptId}}/answers/{{questionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "attempts",
+                "{{attemptId}}",
+                "answers",
+                "{{questionId}}"
+              ]
+            },
+            "description": "Saves (upserts) an answer for a question during an in-progress attempt. Auto-scores MCQ answers.\n\n**Auth:** Bearer Token (CANDIDATE)\n\n**Body:**\n- `response` (any JSON) — for MCQ use the option string; for TEXT/CODE use a string\n\n**Errors:**\n- 409 — Attempt not IN_PROGRESS or expired"
+          },
+          "response": []
+        },
+        {
+          "name": "6.6 Submit Attempt",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", () => pm.response.to.have.status(200));\npm.test(\"Status is SUBMITTED\", () => {\n    const json = pm.response.json();\n    pm.expect(json.data.status).to.eql(\"SUBMITTED\");\n    pm.expect(json.data).to.have.property(\"autoScore\");\n});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/attempts/{{attemptId}}/submit?options=useState",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "attempts",
+                "{{attemptId}}",
+                "submit"
+              ],
+              "query": [
+                {
+                  "key": "options",
+                  "value": "useState"
+                }
+              ]
+            },
+            "description": "Submits an in-progress attempt, computes `autoScore` from MCQ answers, and moves to SUBMITTED (ready for review).\n\n**Auth:** Bearer Token (CANDIDATE)\n\n**Errors:**\n- 409 — Not IN_PROGRESS or already submitted"
+          },
+          "response": []
+        }
+      ],
+      "description": "Candidate assessment attempts: enroll, start, answer, submit."
+    },
+    {
+      "name": "07 - Payments",
+      "item": [
+        {
+          "name": "7.1 Create Stripe Checkout Session",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "if (json.success) {",
+                  "    pm.environment.set(\"paymentId\", json.data.paymentId);",
+                  "    pm.environment.set(\"checkoutUrl\", json.data.checkoutUrl);",
+                  "    console.log(\"🔗 Open this URL to pay:\", json.data.checkoutUrl);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/payments/attempts/{{attemptId}}/checkout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payments",
+                "attempts",
+                "{{attemptId}}",
+                "checkout"
+              ]
+            },
+            "description": "Creates a Stripe Checkout Session for a paid assessment attempt.\n\n**Auth:** Bearer Token (CANDIDATE)\n\n**Response 201:**\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"paymentId\": \"...\",\n    \"sessionId\": \"cs_test_...\",\n    \"checkoutUrl\": \"https://checkout.stripe.com/...\"\n  }\n}\n```\n\n**Test card:** `4242 4242 4242 4242` — any future expiry, any CVC.\n\n**Errors:**\n- 409 — Free assessment, already paid, or wrong attempt status"
+          },
+          "response": []
+        },
+        {
+          "name": "7.2 Initiate PaymentIntent",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "if (json.success && json.data.payment) {",
+                  "    pm.environment.set(\"paymentId\", json.data.payment.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/payments/attempts/{{attemptId}}/initiate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payments",
+                "attempts",
+                "{{attemptId}}",
+                "initiate"
+              ]
+            },
+            "description": "Initiates a Stripe PaymentIntent (alternative to Checkout). Returns `clientSecret` for frontend confirmation.\n\n**Auth:** Bearer Token (CANDIDATE)\n\n**Body (optional):**\n- `paymentMethodId` — Stripe PaymentMethod ID for immediate confirmation"
+          },
+          "response": []
+        },
+        {
+          "name": "7.3 Confirm Payment",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"paymentMethodId\": \"pm_card_visa\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/payments/{{paymentId}}/confirm",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payments",
+                "{{paymentId}}",
+                "confirm"
+              ]
+            },
+            "description": "Confirms a PaymentIntent with a specific PaymentMethod (used when the frontend collects card details).\n\n**Auth:** Bearer Token (CANDIDATE)"
+          },
+          "response": []
+        },
+        {
+          "name": "7.4 Get Payment by Attempt",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/payments/attempts/{{attemptId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payments",
+                "attempts",
+                "{{attemptId}}"
+              ]
+            },
+            "description": "Returns the payment record for a candidate's attempt.\n\n**Auth:** Bearer Token (CANDIDATE)"
+          },
+          "response": []
+        },
+        {
+          "name": "7.5 Get Payment by ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/payments/{{paymentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payments",
+                "{{paymentId}}"
+              ]
+            },
+            "description": "Returns a payment by ID. Candidates see their own; admins see any.\n\n**Auth:** Bearer Token (CANDIDATE or ADMIN)"
+          },
+          "response": []
+        },
+        {
+          "name": "7.6 Stripe Webhook (Test via Stripe CLI)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "stripe-signature",
+                "value": "<SIGNATURE_FROM_STRIPE_CLI>"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/payments/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payments",
+                "webhook"
+              ]
+            },
+            "description": "⚠️ Normally invoked by Stripe, not Postman.\n\n**Recommended local testing:**\n```bash\nstripe listen --forward-to localhost:5000/api/v1/payments/webhook\n```\n\nHandles: `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.expired`, `payment_intent.succeeded`, `payment_intent.payment_failed`, `payment_intent.canceled`, `payment_intent.processing`."
+          },
+          "response": []
+        }
+      ],
+      "description": "Stripe payment flow: initiate, confirm, checkout session, and status tracking."
+    },
+    {
+      "name": "08 - Reviews (Reviewer)",
+      "item": [
+        {
+          "name": "8.1 Get Review Queue",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "if (json.success && json.data && json.data.length > 0) {",
+                  "    pm.environment.set(\"attemptId\", json.data[0].id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reviews/queue?page=1&limit=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reviews",
+                "queue"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Lists unclaimed SUBMITTED attempts ready for review.\n\n**Auth:** Bearer Token (REVIEWER)"
+          },
+          "response": []
+        },
+        {
+          "name": "8.2 Claim Attempt",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Status is UNDER_REVIEW\", () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.data.status).to.eql(\"UNDER_REVIEW\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reviews/{{attemptId}}/claim",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reviews",
+                "{{attemptId}}",
+                "claim"
+              ]
+            },
+            "description": "Atomically claims a SUBMITTED attempt (SUBMITTED → UNDER_REVIEW). Prevents double-claiming.\n\n**Auth:** Bearer Token (REVIEWER)\n\n**Errors:**\n- 409 — Already claimed"
+          },
+          "response": []
+        },
+        {
+          "name": "8.3 Get Review Attempt Detail",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "if (json.success && json.data.assessment && json.data.assessment.questions) {",
+                  "    for (const q of json.data.assessment.questions) {",
+                  "        if (q.answers && q.answers.length > 0) {",
+                  "            console.log(`Q: ${q.prompt}`);",
+                  "            console.log(`  answerId: ${q.answers[0].id}`);",
+                  "            console.log(`  points: ${q.points}`);",
+                  "        }",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reviews/{{attemptId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reviews",
+                "{{attemptId}}"
+              ]
+            },
+            "description": "Returns full attempt detail with all questions and answers for grading. Prints `answerId`s to console.\n\n**Auth:** Bearer Token (REVIEWER)"
+          },
+          "response": []
+        },
+        {
+          "name": "8.4 List My Assigned Reviews",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reviews/mine?page=1&limit=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reviews",
+                "mine"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Lists attempts assigned to the authenticated reviewer (UNDER_REVIEW or EVALUATED).\n\n**Auth:** Bearer Token (REVIEWER)"
+          },
+          "response": []
+        },
+        {
+          "name": "8.5 Evaluate Attempt",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Review decision present\", () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect([\"PASS\", \"FAIL\"]).to.include(json.data.decision);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"feedback\": \"Overall solid submission. Strong understanding of React fundamentals. Code could be more modular.\",\n  \"answers\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/reviews/{{attemptId}}/evaluate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reviews",
+                "{{attemptId}}",
+                "evaluate"
+              ]
+            },
+            "description": "Submits scores for non-MCQ answers and finalizes the review.\n\n- MCQ answers are auto-scored and skipped\n- Non-MCQ answers need `{ answerId, score, feedback? }`\n- `score` cannot exceed the question's `points`\n- Computes `finalScore` (0-100), determines PASS/FAIL vs `passingScore`, sets attempt status to EVALUATED\n\n**Auth:** Bearer Token (REVIEWER)\n\n**Body:**\n- `feedback` (string, 3-5000) — overall feedback\n- `answers` (array) — `{ answerId, score, feedback? }` for each non-MCQ answer (get `answerId`s from 8.3)"
+          },
+          "response": []
+        }
+      ],
+      "description": "Reviewer workflow: view queue, claim attempt, evaluate submission."
+    },
+    {
+      "name": "09 - Admin",
+      "item": [
+        {
+          "name": "9.1 List Users",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "if (json.success && json.data && json.data.length > 0) {",
+                  "    pm.environment.set(\"userId\", json.data[0].id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/users?page=1&limit=10&sortOrder=desc",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "users"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "role",
+                  "value": "CANDIDATE",
+                  "description": "CANDIDATE | REVIEWER | ADMIN",
+                  "disabled": true
+                },
+                {
+                  "key": "status",
+                  "value": "ACTIVE",
+                  "description": "ACTIVE | BLOCKED",
+                  "disabled": true
+                },
+                {
+                  "key": "sortOrder",
+                  "value": "desc"
+                }
+              ]
+            },
+            "description": "Lists all users with pagination, search, role/status filter, and sort.\n\n**Auth:** Bearer Token (ADMIN)"
+          },
+          "response": []
+        },
+        {
+          "name": "9.2 Update User Status",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"BLOCKED\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/users/{{userId}}/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "users",
+                "{{userId}}",
+                "status"
+              ]
+            },
+            "description": "Blocks or unblocks a user. Blocking increments `tokenVersion`, revoking all sessions.\n\n**Auth:** Bearer Token (ADMIN)\n\n**Body:**\n- `status`: `ACTIVE` or `BLOCKED`\n\n**Errors:**\n- 409 — Cannot block your own admin account"
+          },
+          "response": []
+        },
+        {
+          "name": "9.3 Update User Role",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"REVIEWER\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/users/{{userId}}/role",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "users",
+                "{{userId}}",
+                "role"
+              ]
+            },
+            "description": "Updates a user's role. Revokes all sessions by incrementing `tokenVersion`.\n\n**Auth:** Bearer Token (ADMIN)\n\n**Body:**\n- `role`: `CANDIDATE` | `REVIEWER` | `ADMIN`\n\n**Errors:**\n- 409 — Cannot remove your own admin role, or user has active assessment work"
+          },
+          "response": []
+        },
+        {
+          "name": "9.4 Soft Delete User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/users/{{userId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "users",
+                "{{userId}}"
+              ]
+            },
+            "description": "Soft deletes a user (sets `deletedAt`, status BLOCKED, revokes sessions). Blocked if user has active assessment work.\n\n**Auth:** Bearer Token (ADMIN)\n\n**Errors:**\n- 409 — Cannot delete yourself or user has active attempts"
+          },
+          "response": []
+        },
+        {
+          "name": "9.5 Dashboard Stats",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Stats contain expected keys\", () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.data).to.have.property(\"users\");",
+                  "    pm.expect(json.data).to.have.property(\"attempts\");",
+                  "    pm.expect(json.data).to.have.property(\"payments\");",
+                  "    pm.expect(json.data).to.have.property(\"assessments\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/stats",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "stats"
+              ]
+            },
+            "description": "Returns aggregate platform statistics: user counts by role, published assessments, attempt totals, evaluated count, and payment totals.\n\n**Auth:** Bearer Token (ADMIN)"
+          },
+          "response": []
+        },
+        {
+          "name": "9.6 Audit Logs",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/audit-logs?page=1&limit=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "audit-logs"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "action",
+                  "value": "",
+                  "description": "e.g. ADMIN_USER_ROLE_UPDATE",
+                  "disabled": true
+                },
+                {
+                  "key": "entityType",
+                  "value": "",
+                  "description": "e.g. User, Attempt, Assessment",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Lists audit log entries with pagination and optional action/entityType filter. Includes actor details.\n\n**Auth:** Bearer Token (ADMIN)"
+          },
+          "response": []
+        }
+      ],
+      "description": "Admin operations: user management, dashboard stats, audit logs."
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Ensure baseUrl is set",
+          "if (!pm.environment.get(\"baseUrl\")) {",
+          "    pm.environment.set(\"baseUrl\", \"http://localhost:5000/api/v1\");",
+          "}"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Log response time and status for every request",
+          "console.log(`⏱️ ${pm.response.responseTime}ms | ✅ ${pm.response.code}`);"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000/api/v1"
+    }
+  ]
+}

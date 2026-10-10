@@ -12,7 +12,7 @@ const envSchema = z.object({
 	JWT_ACCESS_EXPIRES_IN: z.string().default("15m"),
 	JWT_REFRESH_EXPIRES_IN: z.string().default("7d"),
 	BCRYPT_SALT_ROUNDS: z.coerce.number().int().min(8).max(12).default(12),
-	FRONTEND_URL: z.string().default("http://localhost:3000"),
+	FRONTEND_URL: z.string().default("https://assessly-pi.vercel.app"),
 	GOOGLE_CLIENT_ID: z.string().optional().or(z.literal("")),
 	TESTER_ADMIN_NAME: z.string().default("Tester Admin 1"),
 	TESTER_ADMIN_EMAIL: z.email().default("testeradmin@gmail.com"),
@@ -40,9 +40,9 @@ const envSchema = z.object({
 	STRIPE_WEBHOOK_SECRET: z.string().optional().or(z.literal("")),
 	STRIPE_RETURN_URL: z.string().default("http://localhost:3000/payment/return"),
 	STRIPE_SUCCESS_URL: z.string().default(
-		"http://localhost:3000/payment/success?session_id={CHECKOUT_SESSION_ID}",
+		"https://assessly-pi.vercel.app/payment/success?session_id={CHECKOUT_SESSION_ID}",
 	  ),
-	  STRIPE_CANCEL_URL: z.string().default("http://localhost:3000/payment/cancel"),
+	  STRIPE_CANCEL_URL: z.string().default("https://assessly-pi.vercel.app/payment/cancel"),
 });
 
 const parsed = envSchema.safeParse(process.env);

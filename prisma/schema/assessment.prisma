@@ -22,3 +22,6 @@ model Assessment {
   @@index([difficulty, status])
   @@index([createdById, deletedAt])
 }
+
+
+

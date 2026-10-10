@@ -30,9 +30,9 @@ export const googleSchema = z.object({
 });
 
 export const refreshSchema = z.object({
-	body: z.object({
-		refreshToken: z.string().min(20),
-	}),
+	body: z.object({}).optional().default({}),
 });
 
-export const logoutSchema = refreshSchema;
+export const logoutSchema = z.object({
+	body: z.object({}).optional().default({}),
+});

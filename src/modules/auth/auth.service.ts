@@ -162,7 +162,8 @@ export const googleLogin = async (credential: string) => {
 	};
 };
 
-export const refresh = async (token: string) => {
+export const refresh = async (token: string | undefined) => {
+	if (!token) throw new AppError(401, "Refresh token is missing");
 	let payload;
 	try {
 		payload = verifyRefreshToken(token);
@@ -189,7 +190,8 @@ export const refresh = async (token: string) => {
 	return createSession(user);
 };
 
-export const logout = async (token: string) => {
+export const logout = async (token: string | undefined) => {
+	if (!token) return null;
 	let payload;
 	try {
 		payload = verifyRefreshToken(token);

@@ -39,14 +39,10 @@ const envSchema = z.object({
 	STRIPE_SECRET_KEY: z.string().optional().or(z.literal("")),
 	STRIPE_WEBHOOK_SECRET: z.string().optional().or(z.literal("")),
 	STRIPE_RETURN_URL: z.string().default("http://localhost:3000/payment/return"),
-	STRIPE_SUCCESS_URL: z
-		.string()
-		.default(
-			"http://localhost:5000/api/v1/payments/checkout/success?session_id={CHECKOUT_SESSION_ID}",
-		),
-	STRIPE_CANCEL_URL: z
-		.string()
-		.default("http://localhost:5000/api/v1/payments/checkout/cancel"),
+	STRIPE_SUCCESS_URL: z.string().default(
+		"http://localhost:3000/payment/success?session_id={CHECKOUT_SESSION_ID}",
+	  ),
+	  STRIPE_CANCEL_URL: z.string().default("http://localhost:3000/payment/cancel"),
 });
 
 const parsed = envSchema.safeParse(process.env);

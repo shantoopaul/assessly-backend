@@ -24,10 +24,22 @@ export const auth = (...roles: Role[]): RequestHandler => {
 					deletedAt: null,
 					status: UserStatus.ACTIVE,
 				},
-				select: { id: true, email: true, role: true },
+				select: {
+					id: true,
+					email: true,
+					role: true,
+					tokenVersion: true,
+				},
 			});
 
 			if (!user) throw new AppError(401, "User account is unavailable");
+
+			if (payload.tokenVersion !== user.tokenVersion) {
+				throw new AppError(
+					401,
+					"Session has been revoked, please log in again",
+				);
+			}
 
 			if (roles.length > 0 && !roles.includes(user.role)) {
 				throw new AppError(403, "You are not allowed to access this resource");

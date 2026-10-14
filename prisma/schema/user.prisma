@@ -1,16 +1,17 @@
 model User {
-  id           String     @id @default(uuid())
+  id           String       @id @default(uuid())
   name         String
-  email        String     @unique
+  email        String       @unique
   password     String?
-  googleId     String?    @unique
-  role         Role       @default(CANDIDATE)
-  status       UserStatus @default(ACTIVE)
+  googleId     String?      @unique
+  authProvider AuthProvider @default(CREDENTIALS)
+  role         Role         @default(CANDIDATE)
+  status       UserStatus   @default(ACTIVE)
   avatarUrl    String?
-  tokenVersion Int        @default(0)
+  tokenVersion Int          @default(0)
   deletedAt    DateTime?
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
 
   authoredAssessments Assessment[] @relation("AssessmentAuthor")
   candidateAttempts   Attempt[]    @relation("CandidateAttempts")

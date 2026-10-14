@@ -49,3 +49,8 @@ enum ReviewDecision {
   PASS
   FAIL
 }
+
+enum AuthProvider {
+  CREDENTIALS
+  GOOGLE
+}

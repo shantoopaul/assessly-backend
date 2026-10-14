@@ -30,9 +30,17 @@ export const googleSchema = z.object({
 });
 
 export const refreshSchema = z.object({
-	body: z.object({}).optional().default({}),
+	body: z
+		.object({
+			refreshToken: z.string().min(20).optional(),
+		})
+		.default({}),
 });
 
 export const logoutSchema = z.object({
-	body: z.object({}).optional().default({}),
+	body: z
+		.object({
+			refreshToken: z.string().min(20).optional(),
+		})
+		.default({}),
 });

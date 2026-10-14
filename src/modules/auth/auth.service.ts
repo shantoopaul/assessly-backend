@@ -1,7 +1,12 @@
 import bcrypt from "bcryptjs";
-import { Role, UserStatus } from "../../../generated/prisma/enums";
+import type { TokenPayload } from "google-auth-library";
+import {
+	AuthProvider,
+	Role,
+	UserStatus,
+} from "../../../generated/prisma/enums";
 import { config } from "../../config";
-import { verifyGoogleIdToken } from "../../lib/google";
+import { googleClient } from "../../lib/google";
 import { sendEmail } from "../../lib/nodemailer";
 import { prisma } from "../../lib/prisma";
 import { AppError } from "../../utils/AppError";
@@ -32,6 +37,7 @@ const createSession = (user: {
 		sub: user.id,
 		email: user.email,
 		role: user.role,
+		tokenVersion: user.tokenVersion,
 	}),
 	refreshToken: createRefreshToken({
 		sub: user.id,
@@ -118,36 +124,76 @@ export const login = async (payload: { email: string; password: string }) => {
 };
 
 export const googleLogin = async (credential: string) => {
-	const googleUser = await verifyGoogleIdToken(credential);
+	if (!config.GOOGLE_CLIENT_ID) {
+		throw new AppError(503, "Google login is not configured on this server");
+	}
 
-	const existing = await prisma.user.findUnique({
-		where: { email: googleUser.email },
+	let googleIdTokenPayload: TokenPayload | null | undefined = null;
+
+	try {
+		const ticket = await googleClient.verifyIdToken({
+			idToken: credential,
+			audience: config.GOOGLE_CLIENT_ID,
+		});
+
+		googleIdTokenPayload = ticket.getPayload();
+	} catch (error) {
+		console.log("Google ID Token Verification Failed", error);
+		throw new AppError(401, "Invalid Or Expired Google Id Token");
+	}
+
+	if (!googleIdTokenPayload) {
+		throw new AppError(401, "Invalid Or Expired Google Id Token");
+	}
+	if (!googleIdTokenPayload.email) {
+		throw new AppError(400, "Google Email Not Found");
+	}
+	if (!googleIdTokenPayload.name) {
+		throw new AppError(400, "Google Email User Name Not Found");
+	}
+
+	let user = await prisma.user.findFirst({
+		where: {
+			email: googleIdTokenPayload.email,
+			googleId: googleIdTokenPayload.sub,
+			deletedAt: null,
+		},
 	});
 
-	if (existing?.deletedAt) {
-		throw new AppError(403, "This account has been deleted");
-	}
-	if (existing?.status === UserStatus.BLOCKED) {
-		throw new AppError(403, "This account is blocked");
-	}
+	if (!user) {
+		const existingCredentialUser = await prisma.user.findFirst({
+			where: {
+				email: googleIdTokenPayload.email,
+				authProvider: AuthProvider.CREDENTIALS,
+				deletedAt: null,
+			},
+		});
 
-	const user = existing
-		? await prisma.user.update({
-				where: { id: existing.id },
+		if (existingCredentialUser) {
+			if (existingCredentialUser.status === UserStatus.BLOCKED) {
+				throw new AppError(403, "User is Blocked");
+			}
+
+			user = await prisma.user.update({
+				where: { id: existingCredentialUser.id },
+				data: { googleId: googleIdTokenPayload.sub },
+			});
+		} else {
+			user = await prisma.user.create({
 				data: {
-					googleId: existing.googleId ?? googleUser.googleId,
-					avatarUrl: existing.avatarUrl ?? googleUser.avatarUrl,
-				},
-			})
-		: await prisma.user.create({
-				data: {
-					name: googleUser.name,
-					email: googleUser.email,
-					googleId: googleUser.googleId,
-					avatarUrl: googleUser.avatarUrl,
-					role: Role.CANDIDATE,
+					name: googleIdTokenPayload.name,
+					email: googleIdTokenPayload.email,
+					googleId: googleIdTokenPayload.sub,
+					authProvider: AuthProvider.GOOGLE,
+					avatarUrl: googleIdTokenPayload.picture ?? null,
 				},
 			});
+		}
+	}
+
+	if (user.status === UserStatus.BLOCKED) {
+		throw new AppError(403, "User Is Blocked");
+	}
 
 	await writeAuditLog(user.id, "AUTH_GOOGLE_LOGIN", "User", user.id);
 
@@ -161,7 +207,6 @@ export const googleLogin = async (credential: string) => {
 		...createSession(user),
 	};
 };
-
 export const refresh = async (token: string | undefined) => {
 	if (!token) throw new AppError(401, "Refresh token is missing");
 	let payload;

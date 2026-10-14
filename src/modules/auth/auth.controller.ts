@@ -8,13 +8,21 @@ export const register = catchAsync(async (req, res) => {
 		req.body,
 	);
 	setAuthCookies(res, accessToken, refreshToken);
-	sendResponse(res, 201, "Candidate registered successfully", { user });
+	sendResponse(res, 201, "Candidate registered successfully", {
+		user,
+		accessToken,
+		refreshToken,
+	});
 });
 
 export const login = catchAsync(async (req, res) => {
 	const { user, accessToken, refreshToken } = await AuthService.login(req.body);
 	setAuthCookies(res, accessToken, refreshToken);
-	sendResponse(res, 200, "Login successful", { user });
+	sendResponse(res, 200, "Login successful", {
+		user,
+		accessToken,
+		refreshToken,
+	});
 });
 
 export const googleLogin = catchAsync(async (req, res) => {
@@ -22,18 +30,22 @@ export const googleLogin = catchAsync(async (req, res) => {
 		req.body.credential,
 	);
 	setAuthCookies(res, accessToken, refreshToken);
-	sendResponse(res, 200, "Google login successful", { user });
+	sendResponse(res, 200, "Google login successful", {
+		user,
+		accessToken,
+		refreshToken,
+	});
 });
 
 export const refresh = catchAsync(async (req, res) => {
-	const refreshToken = req.cookies?.refreshToken;
+	const refreshToken = req.cookies?.refreshToken ?? req.body?.refreshToken;
 	const tokens = await AuthService.refresh(refreshToken);
 	setAuthCookies(res, tokens.accessToken, tokens.refreshToken);
-	sendResponse(res, 200, "Token refreshed successfully", null);
+	sendResponse(res, 200, "Token refreshed successfully", tokens);
 });
 
 export const logout = catchAsync(async (req, res) => {
-	const refreshToken = req.cookies?.refreshToken;
+	const refreshToken = req.cookies?.refreshToken ?? req.body?.refreshToken;
 	if (refreshToken) {
 		await AuthService.logout(refreshToken).catch(() => undefined);
 	}

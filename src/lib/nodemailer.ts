@@ -16,16 +16,17 @@ const transporter =
 
 export const sendEmail = async (to: string, subject: string, text: string) => {
 	if (!transporter) {
-		if (config.NODE_ENV === "development") {
-			console.log(`[email skipped] to=${to} subject=${subject}`);
-		}
+		console.warn(
+			`[email skipped] SMTP not configured. Missing: ` +
+				[
+					!config.SMTP_HOST && "SMTP_HOST",
+					!config.SMTP_USER && "SMTP_USER",
+					!config.SMTP_PASSWORD && "SMTP_PASSWORD",
+				]
+					.filter(Boolean)
+					.join(", "),
+		);
 		return;
 	}
-
-	await transporter.sendMail({
-		from: config.EMAIL_SENDER,
-		to,
-		subject,
-		text,
-	});
+	await transporter.sendMail({ from: config.EMAIL_SENDER, to, subject, text });
 };

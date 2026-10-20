@@ -81,7 +81,9 @@ export const register = async (payload: {
 		user.email,
 		"Welcome to Assessly",
 		`Hello there ${user.name}, your candidate account is ready :)`,
-	).catch(() => undefined);
+	).catch((err) => {
+		console.error("[welcome email failed]", err);
+	});
 
 	const { tokenVersion, ...safeUser } = user;
 	return {

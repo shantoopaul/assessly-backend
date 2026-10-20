@@ -32,10 +32,7 @@
 - [Engineering Decisions](#-engineering-decisions)
 - [Security](#-security)
 - [Performance](#-performance)
-- [Deployment](#-deployment)
 - [Scripts](#-scripts)
-- [Roadmap](#-roadmap)
-- [License](#-license)
 
 ---
 
@@ -70,16 +67,14 @@ It demonstrates:
 
 | Environment | Base URL |
 |---|---|
-| **Production** | `https://assessly-backend-hxtz.onrender.com/api/v1` |
+| **Production** | `https://assessly-backend-ruby.vercel.app/api/v1` |
 | **Local** | `http://localhost:5000/api/v1` |
 
 **Health check:** `GET /health`
 
 ```bash
-curl https://assessly-backend-hxtz.onrender.com/health
+curl https://assessly-backend-ruby.vercel.app/health
 ```
-
-> ⚠️ Deployed on Render's free tier — the first request after inactivity may take ~30s to cold-start.
 
 ---
 
@@ -727,7 +722,7 @@ Use any **future expiry**, any **CVC**, any **ZIP**.
 ### 4. Production webhook
 
 In Stripe Dashboard → **Developers → Webhooks → Add endpoint**:
-- **URL:** `https://your-app.onrender.com/api/v1/payments/webhook`
+- **URL:** `https://assessly-backend-ruby.vercel.app/api/v1/payments/webhook`
 - **Events:** `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.expired`, `payment_intent.succeeded`, `payment_intent.payment_failed`, `payment_intent.canceled`, `payment_intent.processing`
 
 Copy the signing secret into your production `STRIPE_WEBHOOK_SECRET`.
@@ -963,32 +958,6 @@ Those are the hot path — candidates browse them constantly. Writes (create/upd
 - **`Promise.all` in transactions** — `prisma.$transaction([...])` batches reads
 - **Connection pooling** — via `@prisma/adapter-pg`
 - **Graceful degradation** — Redis absence doesn't crash the API
-
----
-
-## ☁️ Deployment
-
-### Deployed on Render
-
-1. **Create a PostgreSQL database** on Render → copy the **Internal Database URL**
-2. **Create a Redis instance** on Render → copy the connection string
-3. **Create a Web Service** → connect your GitHub repo
-4. **Configure:**
-   - **Build Command:** `npm install && npx prisma generate && npx prisma migrate deploy && npm run build`
-   - **Start Command:** `npm start`
-   - **Environment:** Node
-5. **Add environment variables** — same as `.env.example`, with production values
-6. **Update Stripe webhook** URL to `https://your-service.onrender.com/api/v1/payments/webhook`
-7. **Seed users once** — open a Render Shell and run `npm run seed`
-
-### Post-deploy checks
-
-```bash
-curl https://your-service.onrender.com/health
-curl https://your-service.onrender.com/api/v1/assessments
-```
-
-Log in as admin via Postman and hit `/admin/stats` to verify DB connectivity.
 
 ---
 
